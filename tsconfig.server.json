@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2023"],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -14,24 +10,13 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": false,
-    "types": [
-      "vitest/globals",
-      "vite/client"
-    ],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    }
+    "types": ["node"],
+    "baseUrl": "."
   },
-  "include": [
-    "src"
-  ]
+  "include": ["api", "server", "src/domain", "src/services/api.ts", "src/i18n/types.ts", "src/i18n/dict.en.ts", "src/i18n/en.common.ts", "src/i18n/en.pages.ts"]
 }

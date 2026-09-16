@@ -162,14 +162,24 @@ src/
   components/      UI primitives, layout, family/discovery/safety components
   pages/           public · app · admin
   styles/          Design tokens, components, layout
+api/
+  [...route].ts    One Vercel Function; every operation dispatches through it
+server/
+  db/              Schema, Neon client, repositories, migrate + seed scripts
+  auth/            Argon2id, cookie sessions, CSRF
+  http/            Context, router, errors, JSON
+  handlers/        One module per route group
 docs/
   ARCHITECTURE.md          Product architecture, flows, data model, security, matching
+  BACKEND.md               API tier, database, deployment, what is still pending
   SECURITY.md              Threat model and the production security requirements
   PROTOTYPE_DISCLOSURES.md What is real, what is simulated, what was never assessed
 ```
 
-Nothing above `services/index.ts` imports from `mock/`. Swapping in an HTTP backend is
-one new class and one changed line.
+Nothing above `services/index.ts` imports from `mock/` or `http/`. Which backend runs is
+decided by one environment variable: `VITE_API_URL=/api` talks to the server,
+unset falls back to the browser-local prototype store so `npm run dev` works with no
+database. See [`docs/BACKEND.md`](docs/BACKEND.md).
 
 ---
 

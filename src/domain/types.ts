@@ -625,12 +625,33 @@ export type NotificationKind =
   | 'safety_notice'
   | 'moderation_update';
 
+/**
+ * An in-app notification.
+ *
+ * Keys and interpolation values, never sentences — the same rule the matching
+ * scorers and the API's `NextStep` follow. A stored English string here is a
+ * notification a Hebrew-reading parent receives in English, and notifications
+ * outlive the request that created them, so there is no later opportunity to
+ * pick a language for them.
+ *
+ * `titleVars` carries data the dictionary interpolates: a family display name,
+ * a place label, a count. Those are values, not prose.
+ */
 export interface AppNotification {
   id: string;
   familyId: FamilyId;
   kind: NotificationKind;
-  title: string;
-  body: string;
+  titleKey: string;
+  titleVars?: Record<string, string | number>;
+  bodyKey: string;
+  bodyVars?: Record<string, string | number>;
+  /**
+   * ISO timestamp the body refers to — a playdate's start, not the
+   * notification's own time. Formatted by the reader's locale, the same way
+   * `TrustSignal.detailDate` is, because a date baked into a stored string is
+   * a date in whoever-wrote-the-code's calendar and language.
+   */
+  bodyDate?: string;
   createdAt: string;
   read: boolean;
   /** In-app route this notification points at. */

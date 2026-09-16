@@ -46,6 +46,10 @@ These are implemented properly and are what the prototype is actually for:
 - **The interaction design** — every flow in the brief works: onboarding, discovery,
   matching, requests, acceptance, messaging, playdate planning, reporting, blocking,
   moderation.
+- **The API tier** (`api/`, `server/`) — 24 of 58 operations against Postgres, with
+  Argon2id passwords, cookie sessions, shared rate-limit buckets, and the privacy
+  projection running server-side before serialisation. The rest are registered with
+  their real guards and return 501. See [`BACKEND.md`](BACKEND.md).
 - **English and Hebrew localisation** (`src/i18n/`) — the whole interface, both
   directions. The Hebrew dictionary is typed against the English one, so an untranslated
   key fails the build rather than reaching a parent's screen. RTL is real layout
@@ -55,15 +59,20 @@ These are implemented properly and are what the prototype is actually for:
 
 ## Known gaps between this and something deployable
 
-1. **Sessions live in `localStorage`.** Production needs `HttpOnly; Secure; SameSite`
-   cookies that JavaScript cannot read. This is the largest single gap.
-2. **All authorization is client-side.** Every check in `guards.ts` must be re-implemented
-   server-side. Client checks are UX, not security.
-3. **All data is in the browser.** `localStorage` is readable by anything on the origin.
-   Acceptable for fictional data; never acceptable for real family data.
-4. **The CSP is a `<meta>` tag.** It must be a response header, with nonces instead of
-   `'unsafe-inline'` for styles, plus `frame-ancestors`, HSTS, `X-Content-Type-Options`
-   and `Referrer-Policy`.
+> **Note.** Items 1–4 below describe the browser-only prototype, which is still what
+> runs when `VITE_API_URL` is unset. An API tier that fixes them now exists — see
+> [`BACKEND.md`](BACKEND.md) for what it covers and what it does not.
+
+1. **Sessions live in `localStorage`** in prototype mode. The server path uses
+   `__Host-` prefixed `HttpOnly; Secure; SameSite=Lax` cookies that JavaScript cannot
+   read, with the token stored only as a salted hash.
+2. **All authorization is client-side** in prototype mode. The server path runs the
+   same `guards.ts` checks again server-side, which is the only place they count.
+3. **All data is in the browser** in prototype mode. `localStorage` is readable by
+   anything on the origin: acceptable for fictional data, never for real family data.
+4. **The CSP was a `<meta>` tag.** `vercel.json` now sends it as a response header
+   along with HSTS, `frame-ancestors`, `X-Content-Type-Options` and `Referrer-Policy`.
+   Styles still need nonces instead of `'unsafe-inline'`.
 5. **No file uploads.** Child photos are modelled but not implemented. When they are, EXIF
    stripping is mandatory — an un-stripped photo carries GPS coordinates and would defeat
    the entire location-privacy design.

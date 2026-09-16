@@ -195,6 +195,7 @@ export function Notifications() {
   const t = useT();
   const [items, setItems] = useState<AppNotification[] | null>(null);
   const f = useFormat();
+  const { d } = useI18n();
 
   const load = useCallback(async () => {
     setItems(await api.getNotifications());
@@ -252,11 +253,12 @@ export function Notifications() {
               </div>
               <div className="grow" style={{ minWidth: 0 }}>
                 <div className="row row-between row-2">
-                  <span className="strong small">{n.title}</span>
+                  <span className="strong small">{t(n.titleKey as never, n.titleVars)}</span>
                   <span className="tiny muted nowrap">{f.timeAgo(n.createdAt)}</span>
                 </div>
                 <div className="small muted" style={{ marginTop: 2 }}>
-                  {n.body}
+                  {t(n.bodyKey as never, n.bodyVars)}
+                  {n.bodyDate && ` · ${d(n.bodyDate, { weekday: 'long', hour: '2-digit', minute: '2-digit' })}`}
                 </div>
               </div>
               {!n.read && <span className="dot dot-warn" style={{ marginTop: 8 }} />}

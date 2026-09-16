@@ -401,4 +401,27 @@ export const enCommon = {
     'Requests for secrecy are a recognised warning sign. If this message made you uncomfortable, you can report it — reports are reviewed by our safety team.',
   'scan.childContact':
     'PlayDate does not support contacting another family’s child directly, and asking for a child’s contact details is against our safety rules. Please report this if it concerns you.',
+
+  // -- Notifications ---------------------------------------------------------
+  // Keys, because a notification outlives the request that created it: there is
+  // no later moment at which a language could be chosen for a stored sentence.
+  'ntf.connectionRequest.title': '{name} would like to connect',
+  'ntf.connectionRequest.body': 'You can accept, decline, or decide later.',
+  'ntf.requestAccepted.title': '{name} accepted your request',
+  'ntf.requestAccepted.body': 'You can now message each other and plan a playdate.',
+  'ntf.newMessage.title': 'New message from {name}',
+  'ntf.newMessage.body': '{preview}',
+  'ntf.playdateProposed.title': '{name} proposed a playdate',
+  'ntf.playdateProposed.body': '{place}',
+  'ntf.playdateConfirmed.title': 'Playdate confirmed with {name}',
+  'ntf.playdateConfirmed.body': 'It is in your calendar. Remember to tell a trusted adult where you will be.',
+  'ntf.playdateDeclined.title': '{name} cannot make that time',
+  'ntf.playdateDeclined.body': 'You can propose another time from the playdate.',
+  'ntf.playdateCancelled.title': '{name} cancelled the playdate',
+  'ntf.playdateCancelled.body': '{reason}',
+  'ntf.noReasonGiven': 'No reason given.',
+  'ntf.verificationComplete.title': 'Identity verification complete',
+  'ntf.verificationComplete.body': 'You can now browse families and send connection requests.',
+  'ntf.verificationFailed.title': 'Verification could not be completed',
+  'ntf.verificationFailed.body': 'You can try again from the Verification page.',
 } as const;

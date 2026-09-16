@@ -395,4 +395,25 @@ export const heCommon: Strings<typeof enCommon> = {
     'בקשות לסודיות הן סימן אזהרה מוכר. אם ההודעה הזו גרמה לכם לאי־נוחות, אפשר לדווח — הדיווחים נבדקים על ידי צוות הבטיחות שלנו.',
   'scan.childContact':
     'PlayDate לא תומך ביצירת קשר ישיר עם ילד של משפחה אחרת, ובקשה לפרטי קשר של ילד מנוגדת לכללי הבטיחות שלנו. אנא דווחו אם זה מדאיג אתכם.',
+
+  // -- Notifications ---------------------------------------------------------
+  'ntf.connectionRequest.title': '{name} מעוניינת להתחבר',
+  'ntf.connectionRequest.body': 'אפשר לאשר, לדחות, או להחליט מאוחר יותר.',
+  'ntf.requestAccepted.title': '{name} אישרה את הבקשה שלכם',
+  'ntf.requestAccepted.body': 'אפשר להתכתב עכשיו ולתכנן מפגש משחק.',
+  'ntf.newMessage.title': 'הודעה חדשה מ{name}',
+  'ntf.newMessage.body': '{preview}',
+  'ntf.playdateProposed.title': '{name} הציעה מפגש משחק',
+  'ntf.playdateProposed.body': '{place}',
+  'ntf.playdateConfirmed.title': 'מפגש המשחק עם {name} אושר',
+  'ntf.playdateConfirmed.body': 'הוא ביומן שלכם. זכרו לספר למבוגר אמין איפה אתם תהיו.',
+  'ntf.playdateDeclined.title': '{name} לא יכולה בזמן הזה',
+  'ntf.playdateDeclined.body': 'אפשר להציע זמן אחר מתוך המפגש.',
+  'ntf.playdateCancelled.title': '{name} ביטלה את מפגש המשחק',
+  'ntf.playdateCancelled.body': '{reason}',
+  'ntf.noReasonGiven': 'לא נומקה סיבה.',
+  'ntf.verificationComplete.title': 'אימות הזהות הושלם',
+  'ntf.verificationComplete.body': 'אפשר לעיין במשפחות ולשלוח בקשות התחברות.',
+  'ntf.verificationFailed.title': 'לא הצלחנו להשלים את האימות',
+  'ntf.verificationFailed.body': 'אפשר לנסות שוב מעמוד האימות.',
 };

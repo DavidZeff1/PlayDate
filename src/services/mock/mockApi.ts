@@ -83,21 +83,10 @@ function delay<T>(value: T, ms = LATENCY_MS): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms));
 }
 
-export class NotFoundError extends Error {
-  constructor(message = 'Not found') {
-    super(message);
-    this.name = 'NotFoundError';
-  }
-}
-
-export class ValidationError extends Error {
-  readonly field?: string;
-  constructor(message: string, field?: string) {
-    super(message);
-    this.name = 'ValidationError';
-    this.field = field;
-  }
-}
+// Defined in `services/errors.ts` so the HTTP client can throw the same classes
+// without importing this module. Re-exported here for existing callers.
+export { NotFoundError, ValidationError } from '../errors';
+import { NotFoundError, ValidationError } from '../errors';
 
 /**
  * Mock implementation of `PlayDateApi`.
@@ -994,8 +983,9 @@ export class MockPlayDateApi implements PlayDateApi {
       notify({
         familyId: toFamilyId,
         kind: 'connection_request',
-        title: `${family.displayName} would like to connect`,
-        body: request.matchSummary || 'You can accept, decline, or decide later.',
+        titleKey: 'ntf.connectionRequest.title',
+        titleVars: { name: family.displayName },
+        bodyKey: 'ntf.connectionRequest.body',
         href: '/app/requests',
       });
 
@@ -1048,8 +1038,9 @@ export class MockPlayDateApi implements PlayDateApi {
         notify({
           familyId: request.fromFamilyId,
           kind: 'request_accepted',
-          title: `${family.displayName} accepted your request`,
-          body: 'You can now message each other and plan a playdate.',
+          titleKey: 'ntf.requestAccepted.title',
+          titleVars: { name: family.displayName },
+          bodyKey: 'ntf.requestAccepted.body',
           href: '/app/messages',
         });
       }
@@ -1207,8 +1198,10 @@ export class MockPlayDateApi implements PlayDateApi {
       notify({
         familyId: other,
         kind: 'new_message',
-        title: `New message from ${family.displayName}`,
-        body: clean.length > 80 ? `${clean.slice(0, 77)}…` : clean,
+        titleKey: 'ntf.newMessage.title',
+        titleVars: { name: family.displayName },
+        bodyKey: 'ntf.newMessage.body',
+        bodyVars: { preview: clean.length > 80 ? `${clean.slice(0, 77)}…` : clean },
         href: '/app/messages',
       });
 
@@ -1298,12 +1291,11 @@ export class MockPlayDateApi implements PlayDateApi {
       notify({
         familyId: other,
         kind: 'playdate_proposed',
-        title: `${family.displayName} proposed a playdate`,
-        body: `${input.place.label} · ${new Date(input.startsAt).toLocaleString('en-GB', {
-          weekday: 'long',
-          hour: '2-digit',
-          minute: '2-digit',
-        })}`,
+        titleKey: 'ntf.playdateProposed.title',
+        titleVars: { name: family.displayName },
+        bodyKey: 'ntf.playdateProposed.body',
+        bodyVars: { place: input.place.label },
+        bodyDate: input.startsAt,
         href: '/app/playdates',
       });
 
@@ -1341,18 +1333,14 @@ export class MockPlayDateApi implements PlayDateApi {
       notify({
         familyId: other,
         kind: response === 'confirmed' ? 'playdate_confirmed' : 'playdate_proposed',
-        title:
-          response === 'confirmed'
-            ? `Playdate confirmed with ${family.displayName}`
-            : `${family.displayName} can't make that time`,
-        body:
-          response === 'confirmed'
-            ? `${playdate.place.label} · ${new Date(playdate.startsAt).toLocaleString('en-GB', {
-                weekday: 'long',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}`
-            : 'You can suggest another time.',
+        titleKey:
+          response === 'confirmed' ? 'ntf.playdateConfirmed.title' : 'ntf.playdateDeclined.title',
+        titleVars: { name: family.displayName },
+        bodyKey:
+          response === 'confirmed' ? 'ntf.playdateProposed.body' : 'ntf.playdateDeclined.body',
+        ...(response === 'confirmed'
+          ? { bodyVars: { place: playdate.place.label }, bodyDate: playdate.startsAt }
+          : {}),
         href: '/app/playdates',
       });
 
@@ -1377,8 +1365,10 @@ export class MockPlayDateApi implements PlayDateApi {
       notify({
         familyId: other,
         kind: 'playdate_proposed',
-        title: `${family.displayName} cancelled the playdate`,
-        body: reason ? sanitiseText(reason, 200) : 'No reason given.',
+        titleKey: 'ntf.playdateCancelled.title',
+        titleVars: { name: family.displayName },
+        bodyKey: reason ? 'ntf.playdateCancelled.body' : 'ntf.noReasonGiven',
+        ...(reason ? { bodyVars: { reason: sanitiseText(reason, 200) } } : {}),
         href: '/app/playdates',
       });
       audit({ actor: session.accountId, actorRole: session.role, action: 'playdate.cancelled', target: playdateId });
@@ -1706,11 +1696,14 @@ export class MockPlayDateApi implements PlayDateApi {
         notify({
           familyId: membership.familyId,
           kind: 'verification_update',
-          title: outcome === 'verified' ? 'Identity verification complete' : 'Verification could not be completed',
-          body:
+          titleKey:
             outcome === 'verified'
-              ? 'You can now browse families and send connection requests.'
-              : 'You can try again from the Verification page.',
+              ? 'ntf.verificationComplete.title'
+              : 'ntf.verificationFailed.title',
+          bodyKey:
+            outcome === 'verified'
+              ? 'ntf.verificationComplete.body'
+              : 'ntf.verificationFailed.body',
           href: '/app/verification',
         });
       }
