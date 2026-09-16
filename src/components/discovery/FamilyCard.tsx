@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { DiscoveryResult } from '../../services';
-import { BAND_LABELS } from '../../domain/matching/engine';
+import { BAND_KEYS } from '../../domain/matching/engine';
+import { useI18n, useT } from '../../i18n';
+import { renderReasons } from '../../i18n/render';
 import { Avatar, Badge } from '../ui';
 import {
   ChildSummary,
@@ -32,17 +34,23 @@ export function FamilyCard({
   onRequest?: (familyId: string) => void;
   onOpen?: (familyId: string) => void;
 }) {
+  const t = useT();
+  const { locale } = useI18n();
   const [showCompat, setShowCompat] = useState(false);
   const { projection, match, relationship } = result;
 
-  const topReasons = match.reasons.filter((r) => r.tone === 'positive').slice(0, 3);
+  const topReasons = renderReasons(
+    match.reasons.filter((r) => r.tone === 'positive').slice(0, 3),
+    t,
+    locale,
+  );
 
   return (
     <>
       <article className="family-card">
         <div className={`match-banner match-${match.band}`}>
           <IconSparkle size={14} />
-          {BAND_LABELS[match.band]}
+          {t(BAND_KEYS[match.band])}
         </div>
 
         <div className="family-card-head">
@@ -103,32 +111,32 @@ export function FamilyCard({
             }}
           >
             <IconInfo size={14} />
-            View compatibility
+            {t('card.viewCompat')}
           </button>
 
           {relationship === 'none' && onRequest && (
             <button className="btn btn-primary btn-sm grow" onClick={() => onRequest(projection.id)}>
-              Send request
+              {t('card.sendRequest')}
             </button>
           )}
           {relationship === 'request_sent' && (
             <span className="btn btn-ghost btn-sm grow" style={{ cursor: 'default' }}>
-              <Badge tone="pending">Request sent</Badge>
+              <Badge tone="pending">{t('card.requestSent')}</Badge>
             </span>
           )}
           {relationship === 'request_received' && (
             <span className="btn btn-ghost btn-sm grow" style={{ cursor: 'default' }}>
-              <Badge tone="brand">They asked you</Badge>
+              <Badge tone="brand">{t('card.theyAsked')}</Badge>
             </span>
           )}
           {relationship === 'connected' && (
             <span className="btn btn-ghost btn-sm grow" style={{ cursor: 'default' }}>
-              <Badge tone="ok">Connected</Badge>
+              <Badge tone="ok">{t('card.connected')}</Badge>
             </span>
           )}
           {relationship === 'declined' && (
             <span className="btn btn-ghost btn-sm grow" style={{ cursor: 'default' }}>
-              <Badge tone="neutral">Not connected</Badge>
+              <Badge tone="neutral">{t('card.notConnected')}</Badge>
             </span>
           )}
         </div>

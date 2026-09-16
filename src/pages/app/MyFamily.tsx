@@ -9,10 +9,11 @@ import {
   ChildInterestList,
   FamilyMeta,
   InterestTags,
-  STYLE_LABELS,
   TrustSignals,
   VerificationBadge,
 } from '../../components/family/FamilyBits';
+import { useI18n, useT } from '../../i18n';
+import { useFormat } from '../../i18n/format';
 import { IconCheck, IconEye, IconLock, IconMapPin, IconEdit } from '../../components/ui/Icons';
 
 /**
@@ -26,8 +27,10 @@ import { IconCheck, IconEye, IconLock, IconMapPin, IconEdit } from '../../compon
 export function MyFamily() {
   const { family, parent, refresh } = useApp();
   const toast = useToast();
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [preview, setPreview] = useState(false);
+  const { d } = useI18n();
 
   if (!family || !parent) return <LoadingBlock />;
 
@@ -35,18 +38,18 @@ export function MyFamily() {
     <div className="stack stack-6">
       <div className="row row-between row-4" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="page-head" style={{ marginBottom: 0 }}>
-          <h1>My family</h1>
-          <p>Your family profile — the one thing other families see.</p>
+          <h1>{t('nav.myFamily')}</h1>
+          <p>{t('fam.sub')}</p>
         </div>
         <div className="row row-3">
           <button className="btn btn-secondary btn-sm" onClick={() => setPreview((p) => !p)}>
             <IconEye size={15} />
-            {preview ? 'Hide preview' : 'See what others see'}
+            {preview ? t('fam.hidePreview') : t('fam.seePreview')}
           </button>
           {!editing && (
             <button className="btn btn-primary btn-sm" onClick={() => setEditing(true)}>
               <IconEdit size={15} />
-              Edit profile
+              {t('fam.editProfile')}
             </button>
           )}
         </div>
@@ -61,7 +64,7 @@ export function MyFamily() {
           onSaved={async () => {
             setEditing(false);
             await refresh();
-            toast.push('Family profile updated.', 'ok');
+            toast.push(t('fam.updated'), 'ok');
           }}
         />
       ) : (
@@ -79,9 +82,9 @@ export function MyFamily() {
                       {family.generalArea}
                     </Badge>
                     {family.privacy.discoverable ? (
-                      <Badge tone="ok">Discoverable</Badge>
+                      <Badge tone="ok">{t('dash.discoverable')}</Badge>
                     ) : (
-                      <Badge tone="warn">Hidden</Badge>
+                      <Badge tone="warn">{t('fam.hidden')}</Badge>
                     )}
                   </div>
                 </div>
@@ -98,28 +101,25 @@ export function MyFamily() {
                   gap: 'var(--sp-5)',
                 }}
               >
-                <Detail label="General area" value={family.generalArea} />
+                <Detail label={t('ob.fam.area')} value={family.generalArea} />
                 <Detail
-                  label="Neighbourhood"
-                  value={family.neighborhood ?? 'Not set'}
-                  note="Only shown to connected families"
+                  label={t('ob.fam.hood')}
+                  value={family.neighborhood ?? t('common.notSet')}
+                  note={t('fam.hoodNote')}
                 />
-                <Detail label="Languages" value={family.languages.join(', ') || 'Not set'} />
+                <Detail label={t('fam.languages')} value={family.languages.join(', ') || t('common.notSet')} />
                 <Detail
-                  label="Travel limit"
+                  label={t('fam.travelLimit')}
                   value={`${family.preferences.maxTravelKm} km`}
-                  note="A hard filter, not a preference"
+                  note={t('fam.travelNote')}
                 />
                 <Detail
-                  label="Age flexibility"
-                  value={`± ${family.preferences.ageFlexibilityYears} years`}
+                  label={t('fam.ageFlex')}
+                  value={t('fam.ageFlexVal', { n: family.preferences.ageFlexibilityYears })}
                 />
                 <Detail
-                  label="Member since"
-                  value={new Date(family.createdAt).toLocaleDateString('en-GB', {
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  label={t('fam.memberSince')}
+                  value={d(family.createdAt, { month: 'long', year: 'numeric' })}
                 />
               </div>
             </div>
@@ -127,14 +127,14 @@ export function MyFamily() {
 
           <section className="card">
             <div className="card-header">
-              <span className="card-title">Children</span>
+              <span className="card-title">{t('fam.childrenTitle')}</span>
               <Link to="/app/children" className="small">
-                Manage children
+                {t('fam.manageChildren')}
               </Link>
             </div>
             <div className="card-body">
               {family.children.length === 0 ? (
-                <p className="muted small">No children added yet.</p>
+                <p className="muted small">{t('fam.noChildren')}</p>
               ) : (
                 <div className="stack stack-5">
                   {family.children.map((c) => (
@@ -147,7 +147,7 @@ export function MyFamily() {
                             {c.nickname && <span className="muted"> ({c.nickname})</span>}
                           </div>
                           <div className="small muted">
-                            {c.age} years old
+                            {t('common.yearsOld', { n: c.age })}
                             {c.pronouns && ` · ${c.pronouns}`}
                           </div>
                         </div>
@@ -168,9 +168,9 @@ export function MyFamily() {
           <div className="dash-grid">
             <section className="card">
               <div className="card-header">
-                <span className="card-title">How you like to meet</span>
+                <span className="card-title">{t('privacyPage.disc7')}</span>
                 <Link to="/app/settings" className="small">
-                  Change
+                  {t('dash.change')}
                 </Link>
               </div>
               <div className="card-body">
@@ -180,7 +180,7 @@ export function MyFamily() {
                   ) : (
                     family.preferences.styles.map((s) => (
                       <span key={s} className="pill">
-                        {STYLE_LABELS[s]}
+                        {t(`style.${s}`)}
                       </span>
                     ))
                   )}
@@ -190,9 +190,9 @@ export function MyFamily() {
 
             <section className="card">
               <div className="card-header">
-                <span className="card-title">Verified about you</span>
+                <span className="card-title">{t('fam.verifiedAbout')}</span>
                 <Link to="/app/verification" className="small">
-                  Verification
+                  {t('nav.verification')}
                 </Link>
               </div>
               <div className="card-body">
@@ -201,10 +201,8 @@ export function MyFamily() {
             </section>
           </div>
 
-          <Alert tone="info" title="What is never on your profile">
-            Your legal name, date of birth, phone number, email address, home address and
-            precise location are stored separately from this profile and are never shown to
-            another family — at any privacy setting.
+          <Alert tone="info" title={t('fam.neverOnProfile')}>
+            {t('fam.neverOnProfileBody')}
           </Alert>
         </>
       )}
@@ -229,6 +227,7 @@ function Detail({ label, value, note }: { label: string; value: string; note?: s
 /* ========================================================================== */
 
 function OthersViewPreview({ family }: { family: Family }) {
+  const t = useT();
   // Deliberately no parent profile and no distance: this is what a stranger at
   // DISCOVERY tier receives, produced by the same function that serves them.
   const discovery = projectFamily(family, { tier: DisclosureTier.DISCOVERY, distanceKm: 3.2 });
@@ -236,9 +235,8 @@ function OthersViewPreview({ family }: { family: Family }) {
 
   if (!discovery) {
     return (
-      <Alert tone="warn" title="You are currently hidden from discovery">
-        Other families cannot see your profile at all. Turn discoverability back on in
-        Settings when you are ready.
+      <Alert tone="warn" title={t('fam.previewHiddenTitle')}>
+        {t('fam.previewHiddenBody')}
       </Alert>
     );
   }
@@ -246,10 +244,9 @@ function OthersViewPreview({ family }: { family: Family }) {
   return (
     <section className="card card-pad stack stack-5" style={{ background: 'var(--surface-2)' }}>
       <div>
-        <h2 style={{ fontSize: 'var(--text-md)' }}>What other families see</h2>
+        <h2 style={{ fontSize: 'var(--text-md)' }}>{t('fam.previewH2')}</h2>
         <p className="small muted" style={{ marginTop: 4 }}>
-          Generated by the same code that serves other families, so this cannot drift from
-          reality.
+          {t('fam.previewP')}
         </p>
       </div>
 
@@ -261,13 +258,13 @@ function OthersViewPreview({ family }: { family: Family }) {
         }}
       >
         <PreviewCard
-          title="Someone browsing"
+          title={t('fam.previewBrowsing')}
           icon={<IconLock size={14} />}
           tone="neutral"
           projection={discovery}
         />
         <PreviewCard
-          title="A family you have connected with"
+          title={t('fam.previewConnected')}
           icon={<IconCheck size={14} />}
           tone="ok"
           projection={connected!}
@@ -275,8 +272,7 @@ function OthersViewPreview({ family }: { family: Family }) {
       </div>
 
       <div className="panel small muted">
-        Neither view contains your address, phone number, email, legal name, date of birth or
-        coordinates — those fields do not exist on the object that is sent.
+        {t('fam.previewNeither')}
       </div>
     </section>
   );
@@ -293,6 +289,8 @@ function PreviewCard({
   tone: 'neutral' | 'ok';
   projection: ReturnType<typeof projectFamily>;
 }) {
+  const t = useT();
+  const f = useFormat();
   if (!projection) return null;
   return (
     <div className="card card-pad">
@@ -305,7 +303,7 @@ function PreviewCard({
         <Avatar name={projection.displayName} color="var(--brand-600)" size="md" square />
         <div>
           <div className="strong small">{projection.displayName}</div>
-          <div className="tiny muted">{projection.locationLabel}</div>
+          <div className="tiny muted">{f.locationLabel(projection.location)}</div>
         </div>
       </div>
 
@@ -315,14 +313,15 @@ function PreviewCard({
         {projection.children.map((c) => (
           <div key={c.id}>
             <div className="small strong">
-              {c.displayName} <span className="muted">· {c.ageLabel}</span>
+              {f.childName(c.displayName)}{' '}
+              <span className="muted">· {f.ageLabel(c.ageView)}</span>
             </div>
             <div style={{ marginTop: 'var(--sp-2)' }}>
               <ChildInterestList child={c} />
             </div>
             {c.notes && (
               <p className="tiny muted" style={{ marginTop: 'var(--sp-2)' }}>
-                Note: {c.notes}
+                {t('fam.noteLabel')} {c.notes}
               </p>
             )}
           </div>
@@ -345,6 +344,7 @@ function EditFamilyForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const [displayName, setDisplayName] = useState(family.displayName);
   const [generalArea, setGeneralArea] = useState(family.generalArea);
   const [neighborhood, setNeighborhood] = useState(family.neighborhood ?? '');
@@ -369,7 +369,7 @@ function EditFamilyForm({
       });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save.');
+      setError(e instanceof Error ? e.message : t('fam.couldNotSave'));
     } finally {
       setBusy(false);
     }
@@ -377,38 +377,38 @@ function EditFamilyForm({
 
   return (
     <section className="card card-pad stack stack-5">
-      <h2 style={{ fontSize: 'var(--text-md)' }}>Edit family profile</h2>
+      <h2 style={{ fontSize: 'var(--text-md)' }}>{t('fam.editH2')}</h2>
 
-      <Field label="Family name" htmlFor="ef-name">
+      <Field label={t('ob.fam.name')} htmlFor="ef-name">
         <input id="ef-name" className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
       </Field>
 
       <Field
-        label="General area"
+        label={t('ob.fam.area')}
         htmlFor="ef-area"
-        hint="Broad enough that it does not identify where you live."
+        hint={t('ob.fam.areaHint')}
       >
         <input id="ef-area" className="input" value={generalArea} onChange={(e) => setGeneralArea(e.target.value)} />
       </Field>
 
       <Field
-        label="Neighbourhood"
+        label={t('ob.fam.hood')}
         htmlFor="ef-hood"
         optional
-        hint="Only shown to connected families, and only if your privacy settings allow it."
+        hint={t('ob.fam.hoodHint')}
       >
         <input id="ef-hood" className="input" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
       </Field>
 
-      <Field label="Languages spoken at home" htmlFor="ef-lang" optional>
+      <Field label={t('ob.fam.langs')} htmlFor="ef-lang" optional>
         <input id="ef-lang" className="input" value={languages} onChange={(e) => setLanguages(e.target.value)} />
       </Field>
 
       <Field
-        label="About your family"
+        label={t('fam.aboutLabel')}
         htmlFor="ef-about"
         optional
-        hint="Avoid anything that identifies where you live or which school your children attend."
+        hint={t('fam.aboutHint')}
       >
         <textarea
           id="ef-about"
@@ -423,10 +423,10 @@ function EditFamilyForm({
 
       <div className="row row-3">
         <button className="btn btn-primary" onClick={save} disabled={busy}>
-          {busy ? 'Saving…' : 'Save changes'}
+          {busy ? t('common.saving') : t('common.saveChanges')}
         </button>
         <button className="btn btn-ghost" onClick={onCancel} disabled={busy}>
-          Cancel
+          {t('common.cancel')}
         </button>
       </div>
     </section>

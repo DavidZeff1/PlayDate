@@ -414,7 +414,7 @@
 
 .sidebar {
   background: var(--surface);
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -496,7 +496,7 @@
 }
 
 .nav-count {
-  margin-left: auto;
+  margin-inline-start: auto;
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
@@ -874,7 +874,7 @@ a.stat:hover {
   text-decoration: none;
   transition: background 0.14s var(--ease);
   width: 100%;
-  text-align: left;
+  text-align: start;
   align-items: flex-start;
 }
 
@@ -1149,7 +1149,7 @@ a.stat:hover {
 }
 
 .settings-nav button {
-  text-align: left;
+  text-align: start;
   padding: 0.5rem var(--sp-3);
   border-radius: var(--r-md);
   font-size: var(--text-base);
@@ -1245,7 +1245,7 @@ table.data {
 }
 
 table.data th {
-  text-align: left;
+  text-align: start;
   padding: var(--sp-3) var(--sp-4);
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
@@ -1340,10 +1340,11 @@ table.data tbody tr:hover {
 
   .sidebar {
     position: fixed;
-    inset: 0 auto 0 0;
+    inset-block: 0;
+    inset-inline-start: 0;
     width: 280px;
     z-index: 70;
-    transform: translateX(-100%);
+    transform: translateX(calc(-100% * var(--dir, 1)));
     transition: transform 0.24s var(--ease);
     box-shadow: var(--shadow-xl);
   }
@@ -1459,6 +1460,23 @@ table.data tbody tr:hover {
 
   .site-nav {
     display: none;
+  }
+
+  /* The language switcher earns its place in the header even at phone width — a
+     Hebrew reader should not have to hunt for it — but the two auth buttons do not
+     all fit beside it, so the header wraps onto two rows. */
+  .site-header-inner {
+    flex-wrap: wrap;
+    row-gap: var(--sp-3);
+  }
+
+  .site-header-inner > .row {
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .site-header-inner .segmented button {
+    padding: 0.2rem 0.45rem;
   }
 
   .feature-grid {

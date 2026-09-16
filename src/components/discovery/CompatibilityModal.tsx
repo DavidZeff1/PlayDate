@@ -1,16 +1,28 @@
 import type { DiscoveryResult } from '../../services';
-import { BAND_LABELS } from '../../domain/matching/engine';
-import { interestLabel } from '../../domain/interests';
+import { BAND_KEYS } from '../../domain/matching/engine';
+import { interestLabel, importanceLabels } from '../../domain/interests';
+import { useI18n, useT } from '../../i18n';
+import { useFormat } from '../../i18n/format';
+import { renderReasons, joinList } from '../../i18n/render';
+import type { TKey } from '../../i18n/types';
 import { Avatar, Modal, Stars } from '../ui';
 import {
   ChildInterestList,
   DisclosureNotice,
   FamilyMeta,
   TrustSignals,
-  STYLE_LABELS,
   VerificationBadge,
 } from '../family/FamilyBits';
 import { IconCheck, IconInfo, IconSparkle } from '../ui/Icons';
+
+/** Scorer id → the label key for that dimension in the breakdown table. */
+const FACTOR_KEYS: Record<string, TKey> = {
+  age: 'compat.factorAges',
+  interests: 'compat.factorInterests',
+  distance: 'compat.factorDistance',
+  availability: 'compat.factorAvailability',
+  style: 'compat.factorStyle',
+};
 
 /**
  * The full explanation behind a match.
@@ -31,19 +43,24 @@ export function CompatibilityModal({
   result: DiscoveryResult;
   onRequest?: (familyId: string) => void;
 }) {
+  const t = useT();
+  const { locale } = useI18n();
+  const f = useFormat();
   const { projection, match } = result;
+  const reasons = renderReasons(match.reasons, t, locale);
+  const impLabels = importanceLabels(t);
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       wide
-      title={`Compatibility with ${projection.displayName}`}
-      description="Why this family appeared in your results."
+      title={t('compat.title', { name: projection.displayName })}
+      description={t('compat.sub')}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose}>
-            Close
+            {t('common.close')}
           </button>
           {onRequest && (
             <button
@@ -53,7 +70,7 @@ export function CompatibilityModal({
                 onClose();
               }}
             >
-              Send PlayDate request
+              {t('compat.sendPlaydateRequest')}
             </button>
           )}
         </>
@@ -63,7 +80,7 @@ export function CompatibilityModal({
         {/* -- Band, not a percentage ---------------------------------------- */}
         <div className={`match-banner match-${match.band}`} style={{ borderRadius: 'var(--r-md)' }}>
           <IconSparkle size={15} />
-          {BAND_LABELS[match.band]}
+          {t(BAND_KEYS[match.band])}
         </div>
 
         <div className="row row-4">
@@ -80,9 +97,11 @@ export function CompatibilityModal({
 
         {/* -- Reasons -------------------------------------------------------- */}
         <section>
-          <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-3)' }}>Why?</h4>
+          <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-3)' }}>
+            {t('compat.why')}
+          </h4>
           <ul className="reason-list">
-            {match.reasons.map((r, i) => (
+            {reasons.map((r, i) => (
               <li key={i} className={`reason reason-${r.tone}`}>
                 <span className="reason-icon">
                   {r.tone === 'positive' ? <IconCheck size={14} /> : <IconInfo size={14} />}
@@ -100,29 +119,33 @@ export function CompatibilityModal({
         {match.pairings.length > 0 && (
           <section>
             <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-3)' }}>
-              Children who might get on
+              {t('compat.pairings')}
             </h4>
             <div className="stack stack-3">
               {match.pairings.slice(0, 3).map((p, i) => (
                 <div key={i} className="pairing">
                   <div style={{ minWidth: 0 }}>
                     <div className="strong small">{p.viewerChildName}</div>
-                    <div className="tiny muted">your child</div>
+                    <div className="tiny muted">{t('compat.yourChild')}</div>
                   </div>
                   <div className="pairing-link" aria-hidden="true" />
-                  <div style={{ minWidth: 0, textAlign: 'right' }}>
+                  <div style={{ minWidth: 0, textAlign: 'end' }}>
                     <div className="strong small">{p.candidateChildName}</div>
                     <div className="tiny muted">
-                      {p.ageGap === 0 ? 'same age' : `${p.ageGap} year${p.ageGap === 1 ? '' : 's'} apart`}
+                      {p.ageGap === 0
+                        ? t('compat.sameAge')
+                        : p.ageGap === 1
+                          ? t('compat.yearApart')
+                          : t('compat.yearsApart', { n: p.ageGap })}
                     </div>
                   </div>
-                  <div style={{ minWidth: 110, textAlign: 'right' }}>
+                  <div style={{ minWidth: 110, textAlign: 'end' }}>
                     {p.sharedInterestIds.length > 0 ? (
                       <span className="badge badge-ok">
-                        {p.sharedInterestIds.length} shared
+                        {t('compat.nShared', { n: p.sharedInterestIds.length })}
                       </span>
                     ) : (
-                      <span className="badge badge-neutral">No overlap yet</span>
+                      <span className="badge badge-neutral">{t('compat.noOverlapYet')}</span>
                     )}
                   </div>
                 </div>
@@ -134,59 +157,78 @@ export function CompatibilityModal({
         {/* -- Weighted breakdown ---------------------------------------------- */}
         <section>
           <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-1)' }}>
-            How each factor weighed in
+            {t('compat.factors')}
           </h4>
           <p className="tiny muted" style={{ marginBottom: 'var(--sp-3)' }}>
-            Based on the importance you set in your matching preferences — the stars show how
-            much you asked us to weight each one.
+            {t('compat.factorsHint')}
           </p>
           <div>
-            {match.breakdown.map((b) => (
-              <div key={b.id} className="breakdown-row">
-                <div>
-                  <div className="small strong">{b.label}</div>
-                  <Stars value={b.weight} size="readonly" label={`${b.label} importance`} />
+            {match.breakdown.map((b) => {
+              const label = t(FACTOR_KEYS[b.id] ?? 'compat.factorInterests');
+              return (
+                <div key={b.id} className="breakdown-row">
+                  <div>
+                    <div className="small strong">{label}</div>
+                    <Stars
+                      value={b.weight}
+                      size="readonly"
+                      label={t('compat.importanceOf', { label })}
+                      labels={impLabels}
+                    />
+                  </div>
+                  <div className="breakdown-bar">
+                    <div
+                      className="breakdown-fill"
+                      style={{
+                        width: `${Math.round(b.value * 100)}%`,
+                        background:
+                          b.value > 0.7
+                            ? 'var(--ok-500)'
+                            : b.value > 0.4
+                              ? 'var(--brand-500)'
+                              : 'var(--ink-300)',
+                      }}
+                    />
+                  </div>
+                  <div className="small muted" style={{ textAlign: 'end' }}>
+                    {b.value >= 0.75
+                      ? t('compat.strong')
+                      : b.value >= 0.45
+                        ? t('compat.fair')
+                        : t('compat.low')}
+                  </div>
                 </div>
-                <div className="breakdown-bar">
-                  <div
-                    className="breakdown-fill"
-                    style={{
-                      width: `${Math.round(b.value * 100)}%`,
-                      background: b.value > 0.7 ? 'var(--ok-500)' : b.value > 0.4 ? 'var(--brand-500)' : 'var(--ink-300)',
-                    }}
-                  />
-                </div>
-                <div className="small muted" style={{ textAlign: 'right' }}>
-                  {b.value >= 0.75 ? 'Strong' : b.value >= 0.45 ? 'Fair' : 'Low'}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
         {/* -- Their children -------------------------------------------------- */}
         <section>
           <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-3)' }}>
-            Their children
+            {t('compat.theirChildren')}
           </h4>
           <div className="stack stack-4">
-            {projection.children.map((child) => (
-              <div key={child.id} className="panel">
-                <div className="row row-3" style={{ marginBottom: 'var(--sp-3)' }}>
-                  <Avatar name={child.displayName} color={child.avatarColor} size="sm" />
-                  <div>
-                    <div className="strong small">{child.displayName}</div>
-                    <div className="tiny muted">{child.ageLabel}</div>
+            {projection.children.map((child) => {
+              const name = f.childName(child.displayName);
+              return (
+                <div key={child.id} className="panel">
+                  <div className="row row-3" style={{ marginBottom: 'var(--sp-3)' }}>
+                    <Avatar name={name} color={child.avatarColor} size="sm" />
+                    <div>
+                      <div className="strong small">{name}</div>
+                      <div className="tiny muted">{f.ageLabel(child.ageView)}</div>
+                    </div>
                   </div>
+                  <ChildInterestList child={child} />
+                  {child.notes && (
+                    <p className="small muted" style={{ marginTop: 'var(--sp-3)' }}>
+                      {child.notes}
+                    </p>
+                  )}
                 </div>
-                <ChildInterestList child={child} />
-                {child.notes && (
-                  <p className="small muted" style={{ marginTop: 'var(--sp-3)' }}>
-                    {child.notes}
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -194,10 +236,14 @@ export function CompatibilityModal({
         {match.sharedInterestIds.length > 0 && (
           <section>
             <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-2)' }}>
-              Shared interests
+              {t('compat.sharedInterests')}
             </h4>
             <p className="small muted">
-              {match.sharedInterestIds.map(interestLabel).join(' · ')}
+              {joinList(
+                match.sharedInterestIds.map((id) => interestLabel(id, t)),
+                locale,
+                'unit',
+              )}
             </p>
           </section>
         )}
@@ -206,12 +252,12 @@ export function CompatibilityModal({
         {projection.styles.length > 0 && (
           <section>
             <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-2)' }}>
-              How they like to meet
+              {t('compat.howTheyMeet')}
             </h4>
             <div className="row row-wrap" style={{ gap: 'var(--sp-2)' }}>
               {projection.styles.map((s) => (
                 <span key={s} className="pill">
-                  {STYLE_LABELS[s]}
+                  {t(`style.${s}` as TKey)}
                 </span>
               ))}
             </div>
@@ -221,7 +267,7 @@ export function CompatibilityModal({
         {/* -- Trust ----------------------------------------------------------- */}
         <section>
           <h4 style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--sp-3)' }}>
-            What we have verified
+            {t('compat.whatVerified')}
           </h4>
           <TrustSignals signals={projection.trustSignals} />
         </section>

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { matchFamilies, rankFamilies, haversineKm } from './engine';
+import { en } from '../../i18n/dict.en';
 import { childInterestAffinity } from './scorers';
 import { buildSeed } from '../../data/seed';
 import type { Family, Child, Importance } from '../types';
@@ -105,7 +106,7 @@ describe('matchFamilies', () => {
     expect(result.excluded).toBe(false);
     expect(result.reasons.length).toBeGreaterThan(0);
     // Explainability is the product requirement: a score with no reasons is a bug.
-    expect(result.reasons.every((r) => r.text.length > 0)).toBe(true);
+    expect(result.reasons.every((r) => r.key.length > 0)).toBe(true);
   });
 
   it('produces a band, never a bare percentage as the headline', () => {
@@ -120,7 +121,10 @@ describe('matchFamilies', () => {
     const result = matchFamilies(cohen, green, ctxFor(cohen, green));
 
     expect(result.excluded).toBe(true);
-    expect(result.exclusionReason).toMatch(/years apart/i);
+    expect(result.exclusionKey).toBe('exclude.ageGap');
+    // The gap and the tolerance travel as values, so the sentence can be built in
+    // either language rather than being frozen in English here.
+    expect(result.exclusionVars).toMatchObject({ tolerance: cohen.preferences.ageFlexibilityYears });
   });
 
   it('excludes families beyond the travel radius', () => {
@@ -131,7 +135,7 @@ describe('matchFamilies', () => {
     };
     const result = matchFamilies(cohen, far, ctxFor(cohen, far));
     expect(result.excluded).toBe(true);
-    expect(result.exclusionReason).toMatch(/beyond/i);
+    expect(result.exclusionKey).toBe('exclude.tooFar');
   });
 
   it('excludes families with no overlapping availability', () => {
@@ -142,7 +146,7 @@ describe('matchFamilies', () => {
     };
     const result = matchFamilies(cohen, noOverlap, ctxFor(cohen, noOverlap));
     expect(result.excluded).toBe(true);
-    expect(result.exclusionReason).toMatch(/availability/i);
+    expect(result.exclusionKey).toBe('exclude.noAvailability');
   });
 
   it('excludes blocked families', () => {
@@ -152,7 +156,7 @@ describe('matchFamilies', () => {
       blockedFamilyIds: new Set(['fam_levi']),
     });
     expect(result.excluded).toBe(true);
-    expect(result.exclusionReason).toBe('Blocked');
+    expect(result.exclusionKey).toBe('exclude.blocked');
   });
 
   it('excludes families who have turned off discoverability', () => {
@@ -211,6 +215,28 @@ describe('matchFamilies', () => {
   it('never matches a family against itself', () => {
     const ranked = rankFamilies(cohen, seed.families);
     expect(ranked.some((r) => r.family.id === cohen.id)).toBe(false);
+  });
+});
+
+describe('explainability is translatable', () => {
+  it('emits only keys that exist in the dictionary', () => {
+    // A reason key with no dictionary entry would render as a raw key on screen. The
+    // Hebrew dictionary is typed against the English one, so checking English is enough.
+    const ranked = rankFamilies(cohen, seed.families, { includeExcluded: true });
+    for (const { result } of ranked) {
+      if (result.exclusionKey) expect(en).toHaveProperty(result.exclusionKey);
+      for (const r of result.reasons) {
+        expect(en).toHaveProperty(r.key);
+        if (r.detailKey) expect(en).toHaveProperty(r.detailKey);
+      }
+    }
+  });
+
+  it('carries interpolation values rather than pre-built sentences', () => {
+    const levi = byId('fam_levi');
+    const result = matchFamilies(cohen, levi, ctxFor(cohen, levi));
+    const shared = result.reasons.find((r) => r.key === 'reason.sharedInterests');
+    expect(shared?.vars?.n).toBeGreaterThan(0);
   });
 });
 

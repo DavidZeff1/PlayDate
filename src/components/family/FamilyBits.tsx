@@ -7,7 +7,14 @@ import type {
   VerificationStatus,
 } from '../../domain/types';
 import { interestEmoji, interestLabel } from '../../domain/interests';
-import { SIGNAL_DESCRIPTIONS, SIGNAL_LABELS, VERIFICATION_COPY, discoverySignals } from '../../domain/trust/signals';
+import {
+  VERIFICATION_TONE,
+  discoverySignals,
+  signalDescriptionKey,
+  signalLabelKey,
+} from '../../domain/trust/signals';
+import { useI18n, useT } from '../../i18n';
+import { useFormat } from '../../i18n/format';
 import { Avatar, Badge, Stars } from '../ui';
 import { IconCheck, IconClock, IconLock, IconMapPin, IconUsers } from '../ui/Icons';
 
@@ -16,12 +23,12 @@ import { IconCheck, IconClock, IconLock, IconMapPin, IconUsers } from '../ui/Ico
 /* ========================================================================== */
 
 export function VerificationBadge({ status }: { status: VerificationStatus }) {
-  const copy = VERIFICATION_COPY[status];
-  const tone = copy.tone === 'ok' ? 'ok' : copy.tone === 'pending' ? 'pending' : copy.tone === 'warn' ? 'warn' : 'neutral';
+  const f = useFormat();
+  const tone = VERIFICATION_TONE[status];
   return (
     <Badge tone={tone}>
       {status === 'verified' && <IconCheck size={11} />}
-      {copy.label}
+      {f.verificationLabel(status)}
     </Badge>
   );
 }
@@ -45,19 +52,21 @@ export function TrustSignals({
   signals: TrustSignal[];
   compact?: boolean;
 }) {
+  const t = useT();
+  const f = useFormat();
   const shown = compact ? discoverySignals(signals) : signals.filter((s) => s.satisfied);
 
   if (shown.length === 0) {
-    return <span className="small muted">No verified signals yet</span>;
+    return <span className="small muted">{t('trust.none')}</span>;
   }
 
   if (compact) {
     return (
       <div className="row row-wrap" style={{ gap: 'var(--sp-2)' }}>
         {shown.slice(0, 3).map((s) => (
-          <span key={s.kind} className="badge badge-neutral" title={SIGNAL_DESCRIPTIONS[s.kind]}>
+          <span key={s.kind} className="badge badge-neutral" title={t(signalDescriptionKey(s.kind))}>
             <IconCheck size={10} />
-            {s.detail ?? SIGNAL_LABELS[s.kind]}
+            {f.trustDetail(s) ?? t(signalLabelKey(s.kind))}
           </span>
         ))}
       </div>
@@ -72,8 +81,8 @@ export function TrustSignals({
             <IconCheck size={14} />
           </span>
           <div>
-            <div className="small strong">{s.detail ?? SIGNAL_LABELS[s.kind]}</div>
-            <div className="tiny muted">{SIGNAL_DESCRIPTIONS[s.kind]}</div>
+            <div className="small strong">{f.trustDetail(s) ?? t(signalLabelKey(s.kind))}</div>
+            <div className="tiny muted">{t(signalDescriptionKey(s.kind))}</div>
           </div>
         </li>
       ))}
@@ -94,6 +103,7 @@ export function InterestTags({
   sharedIds?: string[];
   limit?: number;
 }) {
+  const t = useT();
   const shared = new Set(sharedIds);
   // Shared interests lead — they are the reason this family is on screen.
   const ordered = [...interestIds].sort((a, b) => Number(shared.has(b)) - Number(shared.has(a)));
@@ -105,10 +115,10 @@ export function InterestTags({
       {shown.map((id) => (
         <span key={id} className={`interest-tag${shared.has(id) ? ' interest-tag-shared' : ''}`}>
           <span aria-hidden="true">{interestEmoji(id)}</span>
-          {interestLabel(id)}
+          {interestLabel(id, t)}
         </span>
       ))}
-      {rest > 0 && <span className="interest-tag">+{rest} more</span>}
+      {rest > 0 && <span className="interest-tag">{t('common.andMore', { n: rest })}</span>}
     </div>
   );
 }
@@ -126,20 +136,28 @@ export function ChildSummary({
   sharedInterestIds?: string[];
   showInterests?: boolean;
 }) {
+  const t = useT();
+  const f = useFormat();
+  const name = f.childName(child.displayName);
+
   return (
     <div className="stack stack-3">
       <div className="row row-3">
-        <Avatar name={child.displayName} color={child.avatarColor} size="sm" />
+        <Avatar name={name} color={child.avatarColor} size="sm" />
         <div>
           <div className="strong" style={{ fontSize: 'var(--text-base)' }}>
-            {child.displayName}
+            {name}
           </div>
-          <div className="small muted">{child.ageLabel}</div>
+          <div className="small muted">{f.ageLabel(child.ageView)}</div>
         </div>
         {!child.photoVisible && (
-          <span className="tiny muted row row-2" style={{ marginLeft: 'auto' }} title="Photos are off by default and need the parent's consent">
+          <span
+            className="tiny muted row row-2"
+            style={{ marginInlineStart: 'auto' }}
+            title={t('card.noPhotoTitle')}
+          >
             <IconLock size={11} />
-            No photo
+            {t('card.noPhoto')}
           </span>
         )}
       </div>
@@ -160,8 +178,9 @@ export function ChildSummary({
  * profile: interests with the child's own enthusiasm shown as stars.
  */
 export function ChildInterestList({ child }: { child: ChildProjection }) {
+  const t = useT();
   if (child.interests.length === 0) {
-    return <p className="small muted">No interests added yet.</p>;
+    return <p className="small muted">{t('compat.noInterestsYet')}</p>;
   }
   return (
     <ul className="stack stack-2">
@@ -171,9 +190,9 @@ export function ChildInterestList({ child }: { child: ChildProjection }) {
           <li key={i.interestId} className="row row-between row-3">
             <span className="small row row-2">
               <span aria-hidden="true">{interestEmoji(i.interestId)}</span>
-              {interestLabel(i.interestId)}
+              {interestLabel(i.interestId, t)}
             </span>
-            <Stars value={i.enthusiasm} size="readonly" label={interestLabel(i.interestId)} />
+            <Stars value={i.enthusiasm} size="readonly" label={interestLabel(i.interestId, t)} />
           </li>
         ))}
     </ul>
@@ -184,29 +203,26 @@ export function ChildInterestList({ child }: { child: ChildProjection }) {
 /* Family meta line                                                            */
 /* ========================================================================== */
 
-export const STYLE_LABELS: Record<PlaydateStyle, string> = {
-  parents_stay: 'Parents stay',
-  drop_off_ok: 'Drop-off welcome',
-  public_places_only: 'Public places',
-  home_visits_ok: 'Home visits OK',
-  small_groups: 'Small groups',
-  structured_activities: 'Planned activities',
-};
+export function styleLabel(style: PlaydateStyle, t: ReturnType<typeof useT>): string {
+  return t(`style.${style}` as never);
+}
 
 export function FamilyMeta({ family }: { family: FamilyProjection }) {
+  const t = useT();
+  const f = useFormat();
   return (
     <div className="row row-wrap small muted" style={{ gap: 'var(--sp-4)' }}>
       <span className="row row-2">
         <IconMapPin size={13} />
-        {family.locationLabel}
+        {f.locationLabel(family.location)}
       </span>
       <span className="row row-2">
         <IconUsers size={13} />
-        {family.childCount} {family.childCount === 1 ? 'child' : 'children'}
+        {family.childCount} {family.childCount === 1 ? t('common.child') : t('common.children')}
       </span>
       <span className="row row-2">
         <IconClock size={13} />
-        {family.availabilitySummary}
+        {f.availabilityLabel(family.availabilitySummary)}
       </span>
     </div>
   );
@@ -222,15 +238,12 @@ export function FamilyMeta({ family }: { family: FamilyProjection }) {
  * withhold detail from strangers can infer that we withhold their detail too.
  */
 export function DisclosureNotice({ tier }: { tier: number }) {
+  const t = useT();
   if (tier >= 2) {
     return (
       <div className="panel small muted row row-3" style={{ alignItems: 'flex-start' }}>
         <IconCheck size={14} style={{ marginTop: 2, color: 'var(--ok-500)', flexShrink: 0 }} />
-        <span>
-          You are connected with this family, so you can see the details they chose to share
-          with connected families. Home addresses, phone numbers and email addresses are never
-          shared through PlayDate.
-        </span>
+        <span>{t('disclosure.connected')}</span>
       </div>
     );
   }
@@ -238,11 +251,7 @@ export function DisclosureNotice({ tier }: { tier: number }) {
   return (
     <div className="panel small muted row row-3" style={{ alignItems: 'flex-start' }}>
       <IconLock size={14} style={{ marginTop: 2, flexShrink: 0 }} />
-      <span>
-        This is a limited profile. Exact location, contact details, schools and photos stay
-        hidden until both families agree to connect — and the same applies to your family
-        when others browse.
-      </span>
+      <span>{t('disclosure.limited')}</span>
     </div>
   );
 }
@@ -273,4 +282,10 @@ export function SectionHeading({
       {action}
     </div>
   );
+}
+
+/** Playdate style chips. Exported as a hook-friendly helper for call sites. */
+export function useStyleLabel() {
+  const { t } = useI18n();
+  return (style: PlaydateStyle) => t(`style.${style}` as never);
 }

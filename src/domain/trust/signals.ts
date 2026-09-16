@@ -1,4 +1,5 @@
 import type { TrustSignal, TrustSignalKind, VerificationStatus } from '../types';
+import type { TFunc, TKey } from '../../i18n/types';
 
 /**
  * Trust is presented as a SET OF FACTS, never as a score.
@@ -14,30 +15,15 @@ import type { TrustSignal, TrustSignalKind, VerificationStatus } from '../types'
  * file, and no ordering of families by trust anywhere in the product.
  */
 
-export const SIGNAL_LABELS: Record<TrustSignalKind, string> = {
-  email_verified: 'Email verified',
-  phone_verified: 'Phone verified',
-  government_id_verified: 'Government ID verified',
-  two_factor_enabled: 'Two-factor authentication on',
-  secondary_parent_verified: 'Second parent verified',
-  profile_complete: 'Family profile complete',
-  account_age: 'Account age',
-  completed_playdates: 'Playdates completed',
-  community_standing: 'Community standing',
-};
+export function signalLabelKey(kind: TrustSignalKind): TKey {
+  return `trust.${kind}` as TKey;
+}
 
-export const SIGNAL_DESCRIPTIONS: Record<TrustSignalKind, string> = {
-  email_verified: 'They confirmed a working email address.',
-  phone_verified: 'They confirmed a working phone number by SMS code.',
-  government_id_verified:
-    'A third-party identity provider checked a government-issued ID against a selfie. PlayDate never stores the document.',
-  two_factor_enabled: 'Their account requires a second factor at sign-in.',
-  secondary_parent_verified: 'A second parent on this family has also completed verification.',
-  profile_complete: 'They have filled in their family profile, children and availability.',
-  account_age: 'How long they have been on PlayDate.',
-  completed_playdates: 'Playdates confirmed by both families and marked as completed.',
-  community_standing: 'No upheld safety reports against this family.',
-};
+export function signalDescriptionKey(kind: TrustSignalKind): TKey {
+  return `trustDesc.${kind}` as TKey;
+}
+
+
 
 /** Signals shown at discovery tier. The rest appear only once families connect. */
 const DISCOVERY_VISIBLE: TrustSignalKind[] = [
@@ -52,6 +38,10 @@ export function discoverySignals(signals: TrustSignal[]): TrustSignal[] {
   return signals.filter((s) => DISCOVERY_VISIBLE.includes(s.kind) && s.satisfied);
 }
 
+/**
+ * Detail lines on a trust signal are composed ("Member since March 2024",
+ * "11 playdates completed"), so they carry a key and values rather than a sentence.
+ */
 export function buildTrustSignals(input: {
   emailVerified: boolean;
   phoneVerified: boolean;
@@ -64,20 +54,17 @@ export function buildTrustSignals(input: {
   upheldReports: number;
   joinedAt: string;
 }): TrustSignal[] {
-  const joined = new Date(input.joinedAt);
-  const monthLabel = joined.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-
   return [
     { kind: 'email_verified', satisfied: input.emailVerified },
     { kind: 'phone_verified', satisfied: input.phoneVerified },
     {
       kind: 'government_id_verified',
       satisfied: input.idVerification === 'verified',
-      detail:
+      detailKey:
         input.idVerification === 'verified'
-          ? 'Checked by an identity provider'
+          ? 'trust.idChecked'
           : input.idVerification === 'pending'
-            ? 'Check in progress'
+            ? 'trust.idInProgress'
             : undefined,
     },
     { kind: 'two_factor_enabled', satisfied: input.twoFactorEnabled },
@@ -86,58 +73,50 @@ export function buildTrustSignals(input: {
     {
       kind: 'account_age',
       satisfied: input.accountAgeMonths >= 1,
-      detail: `Member since ${monthLabel}`,
+      detailKey: 'trust.memberSince',
+      // The joined date is passed through so the UI can format the month name in the
+      // reader's language and calendar.
+      detailDate: input.joinedAt,
       value: input.accountAgeMonths,
     },
     {
       kind: 'completed_playdates',
       satisfied: input.completedPlaydates > 0,
-      detail:
+      detailKey:
         input.completedPlaydates === 0
-          ? 'No playdates yet'
-          : `${input.completedPlaydates} playdate${input.completedPlaydates === 1 ? '' : 's'} completed`,
+          ? 'trust.noPlaydates'
+          : input.completedPlaydates === 1
+            ? 'trust.onePlaydateDone'
+            : 'trust.playdatesDone',
+      detailVars: { n: input.completedPlaydates },
       value: input.completedPlaydates,
     },
     {
       kind: 'community_standing',
       satisfied: input.upheldReports === 0,
-      detail: input.upheldReports === 0 ? 'No upheld reports' : undefined,
+      detailKey: input.upheldReports === 0 ? 'trust.noUpheldReports' : undefined,
     },
   ];
 }
 
-export const VERIFICATION_COPY: Record<
-  VerificationStatus,
-  { label: string; tone: 'ok' | 'pending' | 'warn' | 'neutral'; description: string }
-> = {
-  verified: {
-    label: 'Parent verified',
-    tone: 'ok',
-    description: 'This parent completed identity verification.',
-  },
-  pending: {
-    label: 'Verification pending',
-    tone: 'pending',
-    description: 'Identity verification is in progress. Discovery unlocks once it completes.',
-  },
-  failed: {
-    label: 'Verification failed',
-    tone: 'warn',
-    description: 'Identity verification did not complete. You can retry or contact support.',
-  },
-  required: {
-    label: 'Verification required',
-    tone: 'warn',
-    description: 'Identity verification is required before you can browse or contact families.',
-  },
-  unstarted: {
-    label: 'Verification not started',
-    tone: 'neutral',
-    description: 'Start verification to unlock discovery.',
-  },
-  expired: {
-    label: 'Verification expired',
-    tone: 'warn',
-    description: 'Your verification has expired and needs renewing.',
-  },
+/** Verification status copy, as keys plus the tone the badge should take. */
+export const VERIFICATION_TONE: Record<VerificationStatus, 'ok' | 'pending' | 'warn' | 'neutral'> = {
+  verified: 'ok',
+  pending: 'pending',
+  failed: 'warn',
+  required: 'warn',
+  unstarted: 'neutral',
+  expired: 'warn',
 };
+
+export function verificationLabelKey(s: VerificationStatus): TKey {
+  return `verif.${s}.label` as TKey;
+}
+
+export function verificationDescKey(s: VerificationStatus): TKey {
+  return `verif.${s}.desc` as TKey;
+}
+
+export function verificationLabel(s: VerificationStatus, t: TFunc): string {
+  return t(verificationLabelKey(s));
+}

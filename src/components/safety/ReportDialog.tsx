@@ -1,21 +1,10 @@
 import { useState } from 'react';
 import { api } from '../../services';
 import type { ReportReason } from '../../domain/types';
-import { REPORT_REASON_COPY } from '../../domain/safety/contentScan';
+import { REPORT_REASONS, reportDescKey, reportLabelKey } from '../../domain/safety/contentScan';
+import { useT } from '../../i18n';
 import { Alert, Modal, useToast } from '../ui';
 import { IconAlert } from '../ui/Icons';
-
-const ORDER: ReportReason[] = [
-  'child_safety_urgent',
-  'suspicious_behavior',
-  'fake_identity',
-  'harassment',
-  'inappropriate_messages',
-  'misrepresentation',
-  'unwanted_contact',
-  'inappropriate_content',
-  'safety_concern',
-];
 
 /**
  * Reporting.
@@ -51,6 +40,7 @@ export function ReportDialog({
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const toast = useToast();
+  const t = useT();
 
   const reset = () => {
     setReason(null);
@@ -62,7 +52,7 @@ export function ReportDialog({
 
   const submit = async () => {
     if (!reason) {
-      setError('Choose what happened so we can route this to the right team.');
+      setError(t('rep.chooseReason'));
       return;
     }
     setBusy(true);
@@ -76,10 +66,10 @@ export function ReportDialog({
         alsoBlock,
       });
       setDone(true);
-      toast.push('Report submitted. Our safety team will review it.', 'ok');
+      toast.push(t('rep.submitted'), 'ok');
       onDone?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setError(e instanceof Error ? e.message : t('common.somethingWrong'));
     } finally {
       setBusy(false);
     }
@@ -93,7 +83,7 @@ export function ReportDialog({
           reset();
           onClose();
         }}
-        title="Report received"
+        title={t('rep.receivedTitle')}
         footer={
           <button
             className="btn btn-primary"
@@ -102,23 +92,17 @@ export function ReportDialog({
               onClose();
             }}
           >
-            Done
+            {t('common.done')}
           </button>
         }
       >
         <div className="stack stack-4">
-          <Alert tone="ok" title="Thank you — this has gone to our safety team.">
-            A person will review it. We do not tell {familyName} that you reported them.
+          <Alert tone="ok" title={t('rep.thanksTitle')}>
+            {t('rep.thanksBody', { name: familyName })}
           </Alert>
-          <p className="small muted">
-            If a child is in immediate danger, please contact your local emergency services.
-            PlayDate is not an emergency service.
-          </p>
+          <p className="small muted">{t('rep.emergency')}</p>
           {alsoBlock && (
-            <p className="small muted">
-              You have also blocked this family. They can no longer see your profile, message
-              you, or appear in your results.
-            </p>
+            <p className="small muted">{t('rep.alsoBlocked')}</p>
           )}
         </div>
       </Modal>
@@ -132,8 +116,8 @@ export function ReportDialog({
         reset();
         onClose();
       }}
-      title={`Report ${familyName}`}
-      description="Reports are reviewed by people, not automated systems."
+      title={t('rep.title', { name: familyName })}
+      description={t('rep.sub')}
       footer={
         <>
           <button
@@ -144,26 +128,22 @@ export function ReportDialog({
             }}
             disabled={busy}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="btn btn-danger" onClick={submit} disabled={busy}>
-            {busy ? 'Submitting…' : 'Submit report'}
+            {busy ? t('rep.submitting') : t('rep.submitReport')}
           </button>
         </>
       }
     >
       <div className="stack stack-5">
-        <Alert tone="info">
-          Nothing you write here is shared with {familyName}. They are not told that a report
-          exists. Reports never automatically change anyone's profile — a moderator decides
-          what happens next.
-        </Alert>
+        <Alert tone="info">{t('rep.intro', { name: familyName })}</Alert>
 
         <div className="field">
-          <span className="label">What happened?</span>
-          <div className="stack stack-2" role="radiogroup" aria-label="Report reason">
-            {ORDER.map((r) => {
-              const copy = REPORT_REASON_COPY[r];
+          <span className="label">{t('rep.whatHappened')}</span>
+          <div className="stack stack-2" role="radiogroup" aria-label={t('rep.reasonGroup')}>
+            {REPORT_REASONS.map(({ id, urgent }) => {
+              const r = id as ReportReason;
               return (
                 <label key={r} className="radio" data-checked={reason === r}>
                   <input
@@ -174,14 +154,14 @@ export function ReportDialog({
                   />
                   <div>
                     <div className="strong small row row-2">
-                      {copy.urgent && (
+                      {urgent && (
                         <span style={{ color: 'var(--danger-500)' }}>
                           <IconAlert size={13} />
                         </span>
                       )}
-                      {copy.label}
+                      {t(reportLabelKey(r))}
                     </div>
-                    <div className="tiny muted">{copy.description}</div>
+                    <div className="tiny muted">{t(reportDescKey(r))}</div>
                   </div>
                 </label>
               );
@@ -191,37 +171,31 @@ export function ReportDialog({
 
         <div className="field">
           <label className="label" htmlFor="report-details">
-            Tell us what happened
+            {t('rep.tellUs')}
           </label>
-          <div className="hint">
-            Dates, what was said, anything that felt off. Detail helps our team act quickly.
-          </div>
+          <div className="hint">{t('rep.tellUsHint')}</div>
           <textarea
             id="report-details"
             className="textarea"
             value={details}
             onChange={(e) => setDetails(e.target.value)}
-            placeholder="What happened, and when?"
+            placeholder={t('rep.placeholder')}
             maxLength={2000}
           />
-          <div className="tiny muted">{details.length}/2000</div>
+          <div className="tiny muted">{t('common.charCount', { n: details.length, max: 2000 })}</div>
         </div>
 
         {evidenceMessageIds && evidenceMessageIds.length > 0 && (
           <div className="panel small">
-            <strong>Attaching this conversation.</strong> Our safety team will be able to read
-            the messages in this thread — only this thread, and only while the case is open.
+            <strong>{t('rep.attaching')}</strong> {t('rep.attachingBody')}
           </div>
         )}
 
         <label className="checkbox" data-checked={alsoBlock}>
           <input type="checkbox" checked={alsoBlock} onChange={(e) => setAlsoBlock(e.target.checked)} />
           <div>
-            <div className="strong small">Also block this family</div>
-            <div className="tiny muted">
-              Takes effect immediately. They disappear from your results, cannot message you,
-              and are not told that you blocked them.
-            </div>
+            <div className="strong small">{t('rep.alsoBlock')}</div>
+            <div className="tiny muted">{t('rep.alsoBlockDesc')}</div>
           </div>
         </label>
 
@@ -250,16 +224,17 @@ export function BlockDialog({
 }) {
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  const t = useT();
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={`Block ${familyName}?`}
+      title={t('block.title', { name: familyName })}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             className="btn btn-danger"
@@ -268,34 +243,30 @@ export function BlockDialog({
               setBusy(true);
               try {
                 await api.blockFamily(familyId);
-                toast.push(`${familyName} has been blocked.`, 'ok');
+                toast.push(t('block.blocked', { name: familyName }), 'ok');
                 onDone?.();
                 onClose();
               } catch (e) {
-                toast.push(e instanceof Error ? e.message : 'Could not block.', 'error');
+                toast.push(e instanceof Error ? e.message : t('block.couldNot'), 'error');
               } finally {
                 setBusy(false);
               }
             }}
           >
-            {busy ? 'Blocking…' : 'Block family'}
+            {busy ? t('block.blocking') : t('block.confirm')}
           </button>
         </>
       }
     >
       <div className="stack stack-4">
-        <p>Blocking takes effect immediately and works in both directions:</p>
+        <p>{t('block.intro')}</p>
         <ul className="stack stack-2 small muted">
-          <li>• They will not appear in your results, and you will not appear in theirs.</li>
-          <li>• Any conversation between you closes and cannot be reopened.</li>
-          <li>• Any pending request between you is withdrawn.</li>
-          <li>• They are not told that you blocked them.</li>
+          <li>• {t('block.b1')}</li>
+          <li>• {t('block.b2')}</li>
+          <li>• {t('block.b3')}</li>
+          <li>• {t('block.b4')}</li>
         </ul>
-        <p className="small muted">
-          You can undo this from Settings → Blocked families. If something concerning happened,
-          consider reporting it as well — blocking stops the contact, but only a report tells our
-          safety team.
-        </p>
+        <p className="small muted">{t('block.undo')}</p>
       </div>
     </Modal>
   );

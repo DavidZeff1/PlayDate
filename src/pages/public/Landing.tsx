@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services';
 import { useApp } from '../../state/AppContext';
+import { useT } from '../../i18n';
+import { interestLabel } from '../../domain/interests';
 import { Avatar, Badge, PrototypeNote } from '../../components/ui';
 import {
   IconCheck,
@@ -19,6 +21,7 @@ import {
 export function Landing() {
   const navigate = useNavigate();
   const { setSession } = useApp();
+  const t = useT();
 
   const exploreDemo = async () => {
     const { session } = await api.signInAsDemo();
@@ -34,51 +37,46 @@ export function Landing() {
           <div>
             <span className="eyebrow">
               <IconShieldCheck size={13} />
-              Verified parents only
+              {t('landing.eyebrow')}
             </span>
 
             <h1>
-              Help your children find friends —{' '}
-              <span style={{ color: 'var(--brand-600)' }}>without handing over your family's details.</span>
+              {t('landing.h1a')}{' '}
+              <span style={{ color: 'var(--brand-600)' }}>{t('landing.h1b')}</span>
             </h1>
 
-            <p className="hero-lede">
-              PlayDate connects families, not children. Parents create one family profile,
-              choose exactly what other families can see, and only share more once both
-              sides have said yes.
-            </p>
+            <p className="hero-lede">{t('landing.lede')}</p>
 
             <div className="hero-actions">
               <Link to="/signup" className="btn btn-primary btn-lg">
-                Create a family account
+                {t('landing.ctaCreate')}
                 <IconArrowRight size={17} />
               </Link>
               <button className="btn btn-secondary btn-lg" onClick={exploreDemo}>
-                Explore the prototype
+                {t('landing.ctaExplore')}
               </button>
             </div>
 
             <div className="hero-assurances">
               <span>
                 <IconCheck size={14} style={{ color: 'var(--ok-500)' }} />
-                Children never get accounts
+                {t('landing.assure1')}
               </span>
               <span>
                 <IconCheck size={14} style={{ color: 'var(--ok-500)' }} />
-                No addresses, ever
+                {t('landing.assure2')}
               </span>
               <span>
                 <IconCheck size={14} style={{ color: 'var(--ok-500)' }} />
-                Contact only by mutual consent
+                {t('landing.assure3')}
               </span>
             </div>
 
             <div style={{ marginTop: 'var(--sp-8)', maxWidth: 520 }}>
-              <PrototypeNote>
-                This is a working prototype with fictional families. Identity verification is{' '}
-                <strong>simulated</strong>, not real, and no information here has been
-                security-audited or legally reviewed.
-              </PrototypeNote>
+              {/* The dictionary marks "simulated" with <b> for emphasis; React escapes
+                  markup, so the tags are stripped rather than rendered. This page never
+                  injects HTML — see docs/SECURITY.md on XSS. */}
+              <PrototypeNote>{t('proto.landing').replace(/<[^>]+>/g, '')}</PrototypeNote>
             </div>
           </div>
 
@@ -89,18 +87,18 @@ export function Landing() {
             <div className="hero-preview-card">
               <div className="row row-2 small" style={{ color: 'var(--ok-700)', fontWeight: 600, marginBottom: 'var(--sp-4)' }}>
                 <IconSparkle size={14} />
-                Strong potential match
+                {t('band.strong')}
               </div>
 
               <div className="row row-4" style={{ marginBottom: 'var(--sp-4)' }}>
-                <Avatar name="Levi Family" color="var(--brand-600)" size="lg" square />
+                <Avatar name={t('landing.previewFamily')} color="var(--brand-600)" size="lg" square />
                 <div>
                   <div className="strong" style={{ fontSize: 'var(--text-md)' }}>
-                    The Levi Family
+                    {t('landing.previewFamily')}
                   </div>
                   <div style={{ marginTop: 5 }}>
                     <Badge tone="ok">
-                      <IconCheck size={11} /> Parent verified
+                      <IconCheck size={11} /> {t('verif.verified.label')}
                     </Badge>
                   </div>
                 </div>
@@ -108,22 +106,22 @@ export function Landing() {
 
               <div className="row row-wrap small muted" style={{ gap: 'var(--sp-4)', marginBottom: 'var(--sp-4)' }}>
                 <span className="row row-2">
-                  <IconMapPin size={13} /> Jerusalem area
+                  <IconMapPin size={13} /> {t('landing.previewArea')}
                 </span>
                 <span className="row row-2">
-                  <IconUsers size={13} /> One child, age 8
+                  <IconUsers size={13} /> {t('landing.previewChild')}
                 </span>
                 <span className="row row-2">
-                  <IconClock size={13} /> Weekend afternoons
+                  <IconClock size={13} /> {t('landing.previewAvail')}
                 </span>
               </div>
 
               <ul className="reason-list" style={{ marginBottom: 'var(--sp-4)' }}>
                 {[
-                  'Children are the same age',
-                  '4 shared interests',
-                  'LEGO matters to both families',
-                  'Availability overlaps on Saturday afternoons',
+                  t('landing.previewR1'),
+                  t('landing.previewR2'),
+                  t('landing.previewR3'),
+                  t('landing.previewR4'),
                 ].map((r) => (
                   <li key={r} className="reason reason-positive">
                     <span className="reason-icon">
@@ -135,36 +133,34 @@ export function Landing() {
               </ul>
 
               <div className="row row-wrap" style={{ gap: 'var(--sp-2)', marginBottom: 'var(--sp-5)' }}>
-                {[
-                  ['🧱', 'LEGO & building', true],
-                  ['🎲', 'Board games', true],
-                  ['🎨', 'Drawing', true],
-                  ['🏊', 'Swimming', false],
-                ].map(([emoji, label, shared]) => (
-                  <span
-                    key={label as string}
-                    className={`interest-tag${shared ? ' interest-tag-shared' : ''}`}
-                  >
-                    <span aria-hidden="true">{emoji as string}</span>
-                    {label as string}
+                {(
+                  [
+                    ['🧱', 'lego', true],
+                    ['🎲', 'board_games', true],
+                    ['🎨', 'drawing', true],
+                    ['🏊', 'swimming', false],
+                  ] as const
+                ).map(([emoji, id, shared]) => (
+                  <span key={id} className={`interest-tag${shared ? ' interest-tag-shared' : ''}`}>
+                    <span aria-hidden="true">{emoji}</span>
+                    {interestLabel(id, t)}
                   </span>
                 ))}
               </div>
 
               <div className="row row-3">
                 <span className="btn btn-secondary btn-sm grow" style={{ cursor: 'default' }}>
-                  View compatibility
+                  {t('landing.previewCompat')}
                 </span>
                 <span className="btn btn-primary btn-sm grow" style={{ cursor: 'default' }}>
-                  Send request
+                  {t('landing.previewSend')}
                 </span>
               </div>
 
               <div className="panel small muted row row-3" style={{ marginTop: 'var(--sp-4)', alignItems: 'flex-start' }}>
                 <IconLock size={13} style={{ marginTop: 2, flexShrink: 0 }} />
                 <span>
-                  Exact location, contact details and photos stay hidden until both families
-                  agree to connect.
+                  {t('landing.previewLock')}
                 </span>
               </div>
             </div>
@@ -175,45 +171,41 @@ export function Landing() {
       {/* ================= The unit is the family ================= */}
       <section className="section">
         <div className="section-head">
-          <span className="eyebrow">The model</span>
-          <h2>The account belongs to the parent. Always.</h2>
-          <p>
-            Most platforms start with a person and add safety on top. PlayDate starts with a
-            verified family — children are dependents on that family, not users of a service.
-            They have no login, no inbox, and no way to be contacted.
-          </p>
+          <span className="eyebrow">{t('landing.modelEyebrow')}</span>
+          <h2>{t('landing.modelH2')}</h2>
+          <p>{t('landing.modelP')}</p>
         </div>
 
         <div className="feature-grid">
           <Feature
             icon={<IconShieldCheck size={20} />}
-            title="Verified parents"
-            body="Email, phone and government-ID verification before you can browse a single family. Verification is a gate, not a badge — unverified accounts cannot see other people's children at all."
+            title={t('landing.f1.title')}
+            body={t('landing.f1.body')}
           />
           <Feature
             icon={<IconEyeOff size={20} />}
-            title="Controlled discovery"
-            body="Browsing shows a limited profile: general area, children's ages, interests, rough availability. No address, no phone number, no school, no exact location — for anyone."
+            title={t('landing.f2.title')}
+            body={t('landing.f2.body')}
           />
           <Feature
             icon={<IconUsers size={20} />}
-            title="Mutual consent"
-            body="Nobody can message you out of the blue. A request is one short note; a conversation only opens when you accept. Declining is silent and costs you nothing."
+            title={t('landing.f3.title')}
+            body={t('landing.f3.body')}
           />
           <Feature
             icon={<IconFilter size={20} />}
-            title="Matching you can steer"
-            body="Tell us how much each thing matters — LEGO critical, football minor, same age critical. A shared interest you called critical counts for far more than a pile of small ones."
+            title={t('landing.f4.title')}
+            body={t('landing.f4.body')}
           />
           <Feature
             icon={<IconSparkle size={20} />}
-            title="Explained, not scored"
-            body="Never a bare '92% match'. You see why a family surfaced: the ages, the shared interests, the distance band, the overlapping afternoons — and you decide."
+            title={t('landing.f5.title')}
+            body={t('landing.f5.body')}
           />
           <Feature
             icon={<IconGavel size={20} />}
-            title="Reports go to people"
-            body="Reporting opens a case for a human reviewer. It never publicly marks anyone, and the family you report is never told. Blocking is separate, immediate and unilateral."
+            title={t('landing.f6.title')}
+            body={t('landing.f6.body')}
           />
         </div>
       </section>
@@ -221,52 +213,51 @@ export function Landing() {
       {/* ================= Language matters ================= */}
       <section className="section section-tight">
         <div className="section-head">
-          <span className="eyebrow">How we talk about this</span>
-          <h2>Families discovering families.</h2>
+          <span className="eyebrow">{t('landing.langEyebrow')}</span>
+          <h2>{t('landing.langH2')}</h2>
           <p>
-            The language a product uses shapes how people behave in it. We will not build
-            anything that makes a parent feel like they are shopping for children.
+            {t('landing.langP')}
           </p>
         </div>
 
         <div className="compare">
           <div className="compare-col bad">
-            <h4>Not this</h4>
+            <h4>{t('landing.notThis')}</h4>
             <ul>
               <li>
-                <span aria-hidden="true">✕</span> "Find kids near you"
+                <span aria-hidden="true">✕</span> {t('landing.bad1')}
               </li>
               <li>
-                <span aria-hidden="true">✕</span> "Match your child"
+                <span aria-hidden="true">✕</span> {t('landing.bad2')}
               </li>
               <li>
-                <span aria-hidden="true">✕</span> "127 children in your area"
+                <span aria-hidden="true">✕</span> {t('landing.bad3')}
               </li>
               <li>
-                <span aria-hidden="true">✕</span> Browsing children's photos
+                <span aria-hidden="true">✕</span> {t('landing.bad4')}
               </li>
               <li>
-                <span aria-hidden="true">✕</span> Parents ranked by a trust score
+                <span aria-hidden="true">✕</span> {t('landing.bad5')}
               </li>
             </ul>
           </div>
           <div className="compare-col good">
-            <h4>This</h4>
+            <h4>{t('landing.this')}</h4>
             <ul>
               <li>
-                <span aria-hidden="true">✓</span> "Discover families your children may connect with"
+                <span aria-hidden="true">✓</span> {t('landing.good1')}
               </li>
               <li>
-                <span aria-hidden="true">✓</span> "Find compatible families"
+                <span aria-hidden="true">✓</span> {t('landing.good2')}
               </li>
               <li>
-                <span aria-hidden="true">✓</span> "12 families match your preferences"
+                <span aria-hidden="true">✓</span> {t('landing.good3')}
               </li>
               <li>
-                <span aria-hidden="true">✓</span> Interests and ages, photos only by consent
+                <span aria-hidden="true">✓</span> {t('landing.good4')}
               </li>
               <li>
-                <span aria-hidden="true">✓</span> Verified facts, listed plainly, never summed
+                <span aria-hidden="true">✓</span> {t('landing.good5')}
               </li>
             </ul>
           </div>
@@ -276,38 +267,25 @@ export function Landing() {
       {/* ================= Flow ================= */}
       <section className="section section-narrow">
         <div className="section-head">
-          <span className="eyebrow">How it works</span>
-          <h2>Five steps, in this order, on purpose.</h2>
+          <span className="eyebrow">{t('landing.flowEyebrow')}</span>
+          <h2>{t('landing.flowH2')}</h2>
         </div>
 
         <div className="steps">
-          {[
-            {
-              title: 'Verify who you are',
-              body: 'Email, phone, then identity. Nothing opens up until this is done — that is the whole point of the gate.',
-            },
-            {
-              title: 'Build your family profile',
-              body: 'Your children\'s ages and interests, how far you will travel, when you are free, and exactly what other families can see.',
-            },
-            {
-              title: 'Discover compatible families',
-              body: 'A large, filtered pool — not one "perfect match". Every family comes with the reasons it surfaced.',
-            },
-            {
-              title: 'Both sides agree',
-              body: 'Send a request. They accept, decline, or leave it. Only acceptance opens a conversation between the two parents.',
-            },
-            {
-              title: 'Plan somewhere public',
-              body: 'Choose an activity, a public meeting place and a time. Confirm an adult will be there. Tell another adult your plan if you want to.',
-            },
-          ].map((s, i) => (
-            <div className="step" key={s.title}>
+          {(
+            [
+              ['landing.s1.title', 'landing.s1.body'],
+              ['landing.s2.title', 'landing.s2.body'],
+              ['landing.s3.title', 'landing.s3.body'],
+              ['landing.s4.title', 'landing.s4.body'],
+              ['landing.s5.title', 'landing.s5.body'],
+            ] as const
+          ).map(([titleKey, bodyKey], i) => (
+            <div className="step" key={titleKey}>
               <div className="step-num">{i + 1}</div>
               <div>
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
+                <h3>{t(titleKey)}</h3>
+                <p>{t(bodyKey)}</p>
               </div>
             </div>
           ))}
@@ -315,7 +293,7 @@ export function Landing() {
 
         <div style={{ marginTop: 'var(--sp-8)' }}>
           <Link to="/how-it-works" className="btn btn-secondary">
-            Read the full walkthrough
+            {t('landing.readWalkthrough')}
             <IconArrowRight size={16} />
           </Link>
         </div>
@@ -326,9 +304,9 @@ export function Landing() {
         <div className="card card-pad" style={{ background: 'var(--brand-800)', borderColor: 'transparent' }}>
           <div className="section-head" style={{ marginBottom: 'var(--sp-6)' }}>
             <span className="eyebrow" style={{ color: 'var(--brand-200)' }}>
-              Commitments
+              {t('landing.neverEyebrow')}
             </span>
-            <h2 style={{ color: '#fff', marginTop: 'var(--sp-2)' }}>What PlayDate will never do</h2>
+            <h2 style={{ color: '#fff', marginTop: 'var(--sp-2)' }}>{t('landing.neverH2')}</h2>
           </div>
 
           <div
@@ -339,19 +317,19 @@ export function Landing() {
             }}
           >
             {[
-              'Give a child an account, a profile, or a way to be messaged.',
-              'Show another family your street address or exact location.',
-              'Show a child\'s full name to anyone outside your family.',
-              'Let an unverified adult browse detailed information about children.',
-              'Let anyone message you before you have agreed to connect.',
-              'Rank parents publicly by a trust score.',
-            ].map((t) => (
-              <div key={t} className="row row-3" style={{ alignItems: 'flex-start' }}>
+              t('landing.never1'),
+              t('landing.never2'),
+              t('landing.never3'),
+              t('landing.never4'),
+              t('landing.never5'),
+              t('landing.never6'),
+            ].map((line) => (
+              <div key={line} className="row row-3" style={{ alignItems: 'flex-start' }}>
                 <span style={{ color: 'var(--brand-200)', marginTop: 2, flexShrink: 0 }}>
                   <IconCheck size={15} />
                 </span>
                 <span style={{ color: 'rgba(255,255,255,0.88)', fontSize: 'var(--text-base)', lineHeight: 1.55 }}>
-                  {t}
+                  {line}
                 </span>
               </div>
             ))}
@@ -362,21 +340,18 @@ export function Landing() {
       {/* ================= CTA ================= */}
       <section className="section section-tight">
         <div className="cta-band">
-          <h2>Would you put your family's information into this?</h2>
-          <p>
-            That is the question we ask about every feature. If the answer is no, we redesign it.
-            Have a look around and judge for yourself.
-          </p>
+          <h2>{t('landing.ctaH2')}</h2>
+          <p>{t('landing.ctaP')}</p>
           <div className="row row-3" style={{ justifyContent: 'center', marginTop: 'var(--sp-8)', flexWrap: 'wrap' }}>
             <button className="btn btn-secondary btn-lg" onClick={exploreDemo}>
-              Explore the prototype
+              {t('landing.ctaExplore')}
             </button>
             <Link
               to="/safety"
               className="btn btn-lg"
               style={{ color: '#fff', border: '1px solid rgba(255,255,255,0.35)' }}
             >
-              Read our safety approach
+              {t('landing.ctaSafety')}
             </Link>
           </div>
         </div>

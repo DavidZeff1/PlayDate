@@ -1,4 +1,5 @@
 import type { Family, ChildId } from '../types';
+import type { TKey, TVars } from '../../i18n/types';
 
 /**
  * A single human-readable justification for why a family surfaced. `MatchResult`
@@ -8,12 +9,22 @@ import type { Family, ChildId } from '../types';
 export interface MatchReason {
   /** The scorer that produced it. */
   source: string;
-  /** Short sentence a parent can act on: "4 shared interests, including LEGO". */
-  text: string;
+  /**
+   * A translation key, not a sentence.
+   *
+   * The domain decides *what* the reason is; the UI decides how to say it, in whichever
+   * language the parent reads. A scorer that returned "4 shared interests" would have
+   * made a presentation decision it has no business making — and would be
+   * untranslatable.
+   */
+  key: TKey;
+  /** Interpolation values for `key`. Numbers are locale-formatted at render time. */
+  vars?: TVars;
   /** Positive reasons support the match; 'note' reasons are neutral caveats. */
   tone: 'positive' | 'note';
-  /** Optional detail shown when the parent opens the full breakdown. */
-  detail?: string;
+  /** Optional expanded detail, also a key. */
+  detailKey?: TKey;
+  detailVars?: TVars;
 }
 
 export interface ScorerOutput {
@@ -25,7 +36,8 @@ export interface ScorerOutput {
    */
   blocking?: boolean;
   /** Why it's blocking — surfaced to the viewer's own diagnostics, never to the other family. */
-  blockingReason?: string;
+  blockingKey?: TKey;
+  blockingVars?: TVars;
   reasons: MatchReason[];
 }
 
@@ -81,7 +93,8 @@ export interface MatchResult {
   band: MatchBand;
   /** True when a hard constraint excludes this family from the pool. */
   excluded: boolean;
-  exclusionReason?: string;
+  exclusionKey?: TKey;
+  exclusionVars?: TVars;
   reasons: MatchReason[];
   breakdown: ScorerBreakdown[];
   /** Which children plausibly pair up, so parents see the actual point of the match. */

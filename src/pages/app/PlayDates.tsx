@@ -4,6 +4,7 @@ import { api, type PlayDateView } from '../../services';
 import { useApp } from '../../state/AppContext';
 import type { FamilyProjection, MeetingPlace, PlayDate } from '../../domain/types';
 import { PLAYDATE_ACTIVITIES } from '../../domain/interests';
+import { useI18n, useT } from '../../i18n';
 import { SUGGESTED_PLACES } from '../../data/seed';
 import {
   Alert,
@@ -32,6 +33,7 @@ import {
 /* ========================================================================== */
 
 export function PlayDates() {
+  const t = useT();
   const { family } = useApp();
   const toast = useToast();
   const [views, setViews] = useState<PlayDateView[] | null>(null);
@@ -63,36 +65,35 @@ export function PlayDates() {
   return (
     <div className="stack stack-6">
       <div className="page-head">
-        <h1>PlayDates</h1>
+        <h1>{t('nav.playdates')}</h1>
         <p>
-          Arrange a meeting somewhere public. You never have to share your home address to
-          plan a playdate on PlayDate.
+          {t('pd.sub')}
         </p>
       </div>
 
       <Tabs
-        label="PlayDates"
+        label={t('nav.playdates')}
         value={tab}
         onChange={setTab}
         tabs={[
-          { value: 'upcoming', label: 'Upcoming', count: upcoming.length },
-          { value: 'past', label: 'Past', count: past.length },
+          { value: 'upcoming', label: t('dash.upcoming'), count: upcoming.length },
+          { value: 'past', label: t('pd.past'), count: past.length },
         ]}
       />
 
       {list.length === 0 ? (
         <EmptyState
           icon={<IconCalendar size={22} />}
-          title={tab === 'upcoming' ? 'Nothing planned yet' : 'No past playdates'}
+          title={tab === 'upcoming' ? t('pd.emptyUpcoming') : t('pd.emptyPast')}
           description={
             tab === 'upcoming'
-              ? 'Once you have connected with a family, you can propose a playdate from your conversation.'
-              : 'Playdates that have happened, been declined or been cancelled appear here.'
+              ? t('pd.emptyUpcomingDesc')
+              : t('pd.emptyPastDesc')
           }
           action={
             tab === 'upcoming' ? (
               <Link to="/app/messages" className="btn btn-secondary">
-                Go to messages
+                {t('pd.goToMessages')}
               </Link>
             ) : undefined
           }
@@ -107,14 +108,14 @@ export function PlayDates() {
               onRespond={async (response) => {
                 await api.respondToPlayDate(view.playdate.id, response, { adultPresent: true });
                 toast.push(
-                  response === 'confirmed' ? 'PlayDate confirmed.' : 'Response sent.',
+                  response === 'confirmed' ? t('pd.confirmedToast') : t('pd.responseSent'),
                   'ok',
                 );
                 await load();
               }}
               onCancel={async () => {
                 await api.cancelPlayDate(view.playdate.id);
-                toast.push('PlayDate cancelled.', 'ok');
+                toast.push(t('pd.cancelledToast'), 'ok');
                 await load();
               }}
               onShare={() => setSharing(view.playdate)}
@@ -126,9 +127,8 @@ export function PlayDates() {
 
       {tab === 'upcoming' && upcoming.length > 0 && (
         <SafetyNote>
-          <strong>For a first meeting</strong>, a public place with both parents present is the
-          norm on PlayDate. It gives the children space to play and the parents a chance to
-          meet properly.
+          <strong>{t('pd.firstMeetingTitle')}</strong>
+          {t('pd.firstMeetingBody')}
         </SafetyNote>
       )}
 
@@ -138,7 +138,7 @@ export function PlayDates() {
           onClose={() => setSharing(null)}
           onDone={async () => {
             setSharing(null);
-            toast.push('Plan shared.', 'ok');
+            toast.push(t('pd.shared'), 'ok');
             await load();
           }}
         />
@@ -150,7 +150,7 @@ export function PlayDates() {
           onClose={() => setFeedback(null)}
           onDone={async () => {
             setFeedback(null);
-            toast.push('Thank you — this stays private to you.', 'ok');
+            toast.push(t('pd.feedbackThanks'), 'ok');
             await load();
           }}
         />
@@ -174,36 +174,38 @@ function PlayDateCard({
   onShare: () => void;
   onFeedback: () => void;
 }) {
+  const t = useT();
+  const { d: fmtDate } = useI18n();
   const { playdate: p, otherFamily } = view;
-  const d = new Date(p.startsAt);
+  const startsAt = new Date(p.startsAt);
   const isMine = p.proposedByFamilyId === myFamilyId;
   const needsMyResponse = p.status === 'proposed' && !isMine;
-  const isPast = d.getTime() < Date.now();
+  const isPast = startsAt.getTime() < Date.now();
 
   const tone =
     p.status === 'confirmed' ? 'ok' : p.status === 'proposed' ? 'pending' : p.status === 'completed' ? 'brand' : 'neutral';
 
   const label =
     p.status === 'confirmed'
-      ? 'Confirmed'
+      ? t('dash.confirmed')
       : p.status === 'proposed'
         ? isMine
-          ? 'Awaiting their reply'
-          : 'Needs your reply'
+          ? t('pd.awaitingTheirReply')
+          : t('pd.needsYourReply')
         : p.status === 'completed'
-          ? 'Completed'
+          ? t('pd.completed')
           : p.status === 'cancelled'
-            ? 'Cancelled'
-            : 'Declined';
+            ? t('pd.cancelled')
+            : t('pd.declined');
 
   return (
     <section className="card">
       <div className="playdate-card">
         <div className="date-block">
-          <div className="dow">{d.toLocaleDateString('en-GB', { weekday: 'short' })}</div>
-          <div className="dom">{d.getDate()}</div>
+          <div className="dow">{fmtDate(startsAt, { weekday: 'short' })}</div>
+          <div className="dom">{startsAt.getDate()}</div>
           <div className="time">
-            {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            {fmtDate(startsAt, { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
 
@@ -213,15 +215,15 @@ function PlayDateCard({
               <h3 style={{ fontSize: 'var(--text-md)' }}>{p.place.label}</h3>
               <Badge tone={tone}>{label}</Badge>
               {p.place.isPublic ? (
-                <Badge tone="ok">Public place</Badge>
+                <Badge tone="ok">{t('dash.publicPlace')}</Badge>
               ) : (
-                <Badge tone="pending">Private home</Badge>
+                <Badge tone="pending">{t('pd.privateHome')}</Badge>
               )}
             </div>
             <div className="row row-wrap small muted" style={{ gap: 'var(--sp-4)', marginTop: 6 }}>
               <span className="row row-2">
                 <IconUsers size={12} />
-                with {otherFamily.displayName}
+                {t('pd.with', { name: otherFamily.displayName })}
               </span>
               <span className="row row-2">
                 <IconMapPin size={12} />
@@ -229,7 +231,7 @@ function PlayDateCard({
               </span>
               <span className="row row-2">
                 <IconClock size={12} />
-                {p.durationMinutes} minutes
+                {t('pd.minutes', { n: p.durationMinutes })}
               </span>
             </div>
           </div>
@@ -241,14 +243,14 @@ function PlayDateCard({
               present ? (
                 <span key={fid} className="badge badge-ok">
                   <IconCheck size={10} />
-                  {fid === myFamilyId ? 'You will be there' : 'They will be there'}
+                  {fid === myFamilyId ? t('pd.youWillBeThere') : t('pd.theyWillBeThere')}
                 </span>
               ) : null,
             )}
             {p.sharedWith?.map((s, i) => (
               <span key={i} className="badge badge-neutral">
                 <IconShieldCheck size={10} />
-                Shared with {s.name}
+                {t('pd.sharedWith', { name: s.name })}
               </span>
             ))}
           </div>
@@ -258,10 +260,10 @@ function PlayDateCard({
           {needsMyResponse && (
             <>
               <button className="btn btn-primary btn-sm" onClick={() => onRespond('confirmed')}>
-                Confirm
+                {t('common.confirm')}
               </button>
               <button className="btn btn-secondary btn-sm" onClick={() => onRespond('declined')}>
-                Can't make it
+                {t('pd.cantMakeIt')}
               </button>
             </>
           )}
@@ -269,23 +271,23 @@ function PlayDateCard({
           {p.status === 'confirmed' && !isPast && (
             <>
               <button className="btn btn-secondary btn-sm" onClick={onShare}>
-                Tell a trusted adult
+                {t('pd.tellTrustedAdult')}
               </button>
               <button className="btn btn-ghost btn-sm" onClick={onCancel}>
-                Cancel
+                {t('common.cancel')}
               </button>
             </>
           )}
 
           {p.status === 'confirmed' && isPast && (
             <button className="btn btn-secondary btn-sm" onClick={onFeedback}>
-              How did it go?
+              {t('pd.howDidItGo')}
             </button>
           )}
 
           {p.status === 'proposed' && isMine && (
             <button className="btn btn-ghost btn-sm" onClick={onCancel}>
-              Withdraw
+              {t('common.withdraw')}
             </button>
           )}
         </div>
@@ -318,6 +320,7 @@ export function PlayDateComposer({
   onDone: () => void;
 }) {
   const { family } = useApp();
+  const t = useT();
   const [activity, setActivity] = useState<string>('playground');
   const [place, setPlace] = useState<MeetingPlace>(SUGGESTED_PLACES[0]);
   const [customPlace, setCustomPlace] = useState('');
@@ -332,16 +335,16 @@ export function PlayDateComposer({
   const [error, setError] = useState<string | null>(null);
 
   const finalPlace: MeetingPlace = useCustom
-    ? { label: customPlace, kind: 'other', area: otherFamily.locationLabel, isPublic: true }
+    ? { label: customPlace, kind: 'other', area: '', isPublic: true }
     : place;
 
   const submit = async () => {
     if (useCustom && !customPlace.trim()) {
-      setError('Give the meeting place a name.');
+      setError(t('pd.namePlace'));
       return;
     }
     if (childIds.length === 0) {
-      setError('Choose at least one child to come along.');
+      setError(t('pd.chooseChild'));
       return;
     }
     setBusy(true);
@@ -359,7 +362,7 @@ export function PlayDateComposer({
       });
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send.');
+      setError(e instanceof Error ? e.message : t('msg.couldNotSend'));
     } finally {
       setBusy(false);
     }
@@ -370,15 +373,15 @@ export function PlayDateComposer({
       open
       onClose={onClose}
       wide
-      title={`Plan a playdate with ${otherFamily.displayName}`}
-      description="They will need to confirm before it is booked."
+      title={t('pd.planWith', { name: otherFamily.displayName })}
+      description={t('pd.composeSub')}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="btn btn-primary" onClick={submit} disabled={busy}>
-            {busy ? 'Sending…' : 'Send PlayDate request'}
+            {busy ? t('common.sending') : t('compat.sendPlaydateRequest')}
           </button>
         </>
       }
@@ -386,7 +389,7 @@ export function PlayDateComposer({
       <div className="stack stack-6">
         {/* -- Activity -------------------------------------------------- */}
         <div className="field">
-          <span className="label">What would you do?</span>
+          <span className="label">{t('pd.whatWouldYouDo')}</span>
           <div className="row row-wrap" style={{ gap: 'var(--sp-2)' }}>
             {PLAYDATE_ACTIVITIES.map((a) => (
               <button
@@ -396,7 +399,7 @@ export function PlayDateComposer({
                 aria-pressed={activity === a.id}
               >
                 <span aria-hidden="true">{a.emoji}</span>
-                {a.label}
+                {t(a.labelKey)}
               </button>
             ))}
           </div>
@@ -404,10 +407,9 @@ export function PlayDateComposer({
 
         {/* -- Place ----------------------------------------------------- */}
         <div className="field">
-          <span className="label">Where would you meet?</span>
+          <span className="label">{t('pd.whereMeet')}</span>
           <div className="hint">
-            Public places work best for a first meeting — the children can play freely and
-            neither family has to share where they live.
+            {t('pd.whereHint')}
           </div>
 
           <div className="stack stack-2" style={{ marginTop: 'var(--sp-2)' }}>
@@ -429,7 +431,7 @@ export function PlayDateComposer({
                 <div className="grow">
                   <div className="strong small row row-2">
                     {sp.label}
-                    <span className="badge badge-ok">Public</span>
+                    <span className="badge badge-ok">{t('pd.public')}</span>
                   </div>
                   <div className="tiny muted">{sp.area}</div>
                 </div>
@@ -439,20 +441,19 @@ export function PlayDateComposer({
             <label className="radio" data-checked={useCustom}>
               <input type="radio" name="place" checked={useCustom} onChange={() => setUseCustom(true)} />
               <div className="grow">
-                <div className="strong small">Somewhere else</div>
+                <div className="strong small">{t('pd.somewhereElse')}</div>
                 {useCustom && (
                   <input
                     className="input"
                     style={{ marginTop: 'var(--sp-2)' }}
                     value={customPlace}
                     onChange={(e) => setCustomPlace(e.target.value)}
-                    placeholder="A park, café or community centre"
-                    aria-label="Meeting place"
+                    placeholder={t('pd.placePlaceholder')}
+                    aria-label={t('pd.placeLabel')}
                   />
                 )}
                 <div className="tiny muted" style={{ marginTop: 4 }}>
-                  Please do not enter a home address here — you can agree that privately once
-                  you know each other.
+                  {t('pd.noHomeAddress')}
                 </div>
               </div>
             </label>
@@ -467,7 +468,7 @@ export function PlayDateComposer({
             gap: 'var(--sp-4)',
           }}
         >
-          <Field label="Date" htmlFor="pd-date">
+          <Field label={t('pd.date')} htmlFor="pd-date">
             <input
               id="pd-date"
               className="input"
@@ -476,7 +477,7 @@ export function PlayDateComposer({
               onChange={(e) => setDate(e.target.value)}
             />
           </Field>
-          <Field label="Start time" htmlFor="pd-time">
+          <Field label={t('pd.startTime')} htmlFor="pd-time">
             <input
               id="pd-time"
               className="input"
@@ -485,7 +486,7 @@ export function PlayDateComposer({
               onChange={(e) => setTime(e.target.value)}
             />
           </Field>
-          <Field label="How long?" htmlFor="pd-dur">
+          <Field label={t('pd.howLong')} htmlFor="pd-dur">
             <select
               id="pd-dur"
               className="select"
@@ -503,7 +504,7 @@ export function PlayDateComposer({
 
         {/* -- Who ------------------------------------------------------- */}
         <div className="field">
-          <span className="label">Which of your children are coming?</span>
+          <span className="label">{t('pd.whichChildren')}</span>
           <div className="row row-wrap" style={{ gap: 'var(--sp-2)' }}>
             {family?.children.map((c) => {
               const on = childIds.includes(c.id);
@@ -536,7 +537,7 @@ export function PlayDateComposer({
         <div className="card card-pad stack stack-4" style={{ background: 'var(--ok-50)', borderColor: 'var(--ok-100)' }}>
           <div className="row row-3 strong small" style={{ color: 'var(--ok-700)' }}>
             <IconShieldCheck size={16} />
-            Before you send
+            {t('pd.beforeSend')}
           </div>
 
           <label className="checkbox" data-checked={adultPresent} style={{ background: 'var(--surface)' }}>
@@ -546,9 +547,9 @@ export function PlayDateComposer({
               onChange={(e) => setAdultPresent(e.target.checked)}
             />
             <div>
-              <div className="strong small">A parent or guardian from our family will be there</div>
+              <div className="strong small">{t('pd.adultPresent')}</div>
               <div className="tiny muted">
-                Both families confirm this. For a first meeting we strongly recommend it.
+                {t('pd.adultPresentDesc')}
               </div>
             </div>
           </label>
@@ -558,8 +559,7 @@ export function PlayDateComposer({
               <div className="row row-2">
                 <IconAlert size={14} style={{ flexShrink: 0, marginTop: 2 }} />
                 <span>
-                  Drop-off playdates are something most parents arrange only once they know a
-                  family well. There is no hurry.
+                  {t('pd.dropOffWarn')}
                 </span>
               </div>
             </Alert>
@@ -567,21 +567,19 @@ export function PlayDateComposer({
 
           {!finalPlace.isPublic && (
             <Alert tone="warn">
-              You have chosen a private home. That is a normal thing to do between families who
-              know each other — for a first meeting, a public place is usually easier for
-              everyone.
+              {t('pd.homeWarn')}
             </Alert>
           )}
         </div>
 
-        <Field label="Anything else to add?" htmlFor="pd-notes" optional>
+        <Field label={t('pd.anythingElse')} htmlFor="pd-notes" optional>
           <textarea
             id="pd-notes"
             className="textarea"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={400}
-            placeholder="By the big climbing frame. We usually bring a ball."
+            placeholder={t('pd.notesPlaceholder')}
           />
         </Field>
 
@@ -610,6 +608,8 @@ function ShareWithAdultModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
+  const { d } = useI18n();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -617,12 +617,12 @@ function ShareWithAdultModal({
     <Modal
       open
       onClose={onClose}
-      title="Tell a trusted adult"
-      description="Record that someone else knows where you will be."
+      title={t('pd.tellTrustedAdult')}
+      description={t('pd.shareSub')}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             className="btn btn-primary"
@@ -634,21 +634,20 @@ function ShareWithAdultModal({
               onDone();
             }}
           >
-            Save
+            {t('common.save')}
           </button>
         </>
       }
     >
       <div className="stack stack-4">
         <p className="muted">
-          Many parents tell a friend or relative where they are going. This records that you
-          did, so it is in one place if it ever matters.
+          {t('pd.shareP')}
         </p>
 
         <div className="panel small">
           <div className="strong">{playdate.place.label}</div>
           <div className="muted">
-            {new Date(playdate.startsAt).toLocaleString('en-GB', {
+            {d(playdate.startsAt, {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
@@ -660,16 +659,16 @@ function ShareWithAdultModal({
         </div>
 
         <Field
-          label="Who have you told?"
+          label={t('pd.shareWho')}
           htmlFor="share-name"
-          hint="A first name is enough. We do not contact them — this is a note for you."
+          hint={t('pd.shareHint')}
         >
           <input
             id="share-name"
             className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="My sister Dana"
+            placeholder={t('pd.sharePlaceholder')}
           />
         </Field>
       </div>
@@ -690,6 +689,7 @@ function PostMeetingModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useT();
   const [wentWell, setWentWell] = useState<boolean | null>(null);
   const [meetAgain, setMeetAgain] = useState<boolean | null>(null);
   const [concerns, setConcerns] = useState('');
@@ -699,12 +699,12 @@ function PostMeetingModal({
     <Modal
       open
       onClose={onClose}
-      title="How did it go?"
-      description="Private to you. The other family never sees this, and it does not appear on anyone's profile."
+      title={t('pd.howDidItGo')}
+      description={t('pd.feedbackSub')}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
-            Skip
+            {t('common.skip')}
           </button>
           <button
             className="btn btn-primary"
@@ -720,32 +720,32 @@ function PostMeetingModal({
               onDone();
             }}
           >
-            Submit
+            {t('common.submit')}
           </button>
         </>
       }
     >
       <div className="stack stack-5">
         <div className="field">
-          <span className="label">Did the playdate go well?</span>
+          <span className="label">{t('pd.wentWell')}</span>
           <div className="row row-3">
             <button
               className={`btn ${wentWell === true ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setWentWell(true)}
             >
-              Yes, it went well
+              {t('pd.wentWellYes')}
             </button>
             <button
               className={`btn ${wentWell === false ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setWentWell(false)}
             >
-              Not really
+              {t('pd.wentWellNo')}
             </button>
           </div>
         </div>
 
         <div className="field">
-          <span className="label">Would you meet this family again?</span>
+          <span className="label">{t('pd.meetAgain')}</span>
           <div className="row row-3">
             <button
               className={`btn ${meetAgain === true ? 'btn-primary' : 'btn-secondary'}`}
@@ -763,10 +763,10 @@ function PostMeetingModal({
         </div>
 
         <Field
-          label="Anything that concerned you?"
+          label={t('pd.concerns')}
           htmlFor="pm-concerns"
           optional
-          hint="If something worried you, please also submit a report — feedback here is private and is not routed to our safety team."
+          hint={t('pd.concernsHint')}
         >
           <textarea
             id="pm-concerns"
@@ -778,10 +778,8 @@ function PostMeetingModal({
         </Field>
 
         {wentWell === false && (
-          <Alert tone="info" title="Sorry to hear that.">
-            Not every pairing works, and that is normal. You can leave the conversation or block
-            the family at any time, and neither action is shared with them. If something
-            concerning happened, please report it.
+          <Alert tone="info" title={t('pd.sorryTitle')}>
+            {t('pd.sorryBody')}
           </Alert>
         )}
       </div>

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type DiscoveryFilters, type DiscoveryResult } from '../../services';
 import { useApp } from '../../state/AppContext';
-import { INTEREST_CATALOG } from '../../domain/interests';
+import { INTEREST_CATALOG, interestLabel } from '../../domain/interests';
+import { useI18n, useT } from '../../i18n';
+import { renderReasons, renderExclusion } from '../../i18n/render';
 import {
   Alert,
   EmptyState,
@@ -30,9 +32,13 @@ import {
 export function Discover() {
   const { canDiscover, family } = useApp();
   const toast = useToast();
+  const t = useT();
+  const { locale } = useI18n();
 
   const [results, setResults] = useState<DiscoveryResult[] | null>(null);
-  const [excluded, setExcluded] = useState<Array<{ displayName: string; reason: string }>>([]);
+  const [excluded, setExcluded] = useState<
+    Array<{ displayName: string; reasonKey: string; reasonVars?: Record<string, string | number> }>
+  >([]);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<DiscoveryFilters>({ sort: 'match' });
   const [showFilters, setShowFilters] = useState(false);
@@ -47,7 +53,7 @@ export function Discover() {
       setExcluded(x);
     } catch (e) {
       setResults([]);
-      setError(e instanceof Error ? e.message : 'Could not load families.');
+      setError(e instanceof Error ? e.message : t('disc.loadError'));
     }
   }, [filters]);
 
@@ -70,8 +76,8 @@ export function Discover() {
     return (
       <div className="stack stack-6">
         <div className="page-head">
-          <h1>Discover families</h1>
-          <p>Find families whose children yours might connect with.</p>
+          <h1>{t('nav.discover')}</h1>
+          <p>{t('disc.subShort')}</p>
         </div>
 
         <div className="card card-pad stack stack-5" style={{ maxWidth: 620 }}>
@@ -79,15 +85,13 @@ export function Discover() {
             <IconShieldCheck size={20} />
           </div>
           <div>
-            <h2 style={{ fontSize: 'var(--text-lg)' }}>Verification is needed first</h2>
+            <h2 style={{ fontSize: 'var(--text-lg)' }}>{t('disc.gateH2')}</h2>
             <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-              Browsing other families means seeing information about their children. We only
-              open that to parents who have completed identity verification — and the same
-              rule protects your family from anyone who has not.
+              {t('disc.gateP')}
             </p>
           </div>
           <Link to="/app/verification" className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
-            Go to verification
+            {t('disc.gateCta')}
           </Link>
         </div>
       </div>
@@ -98,26 +102,25 @@ export function Discover() {
     <div className="stack stack-6">
       <div className="row row-between row-4" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="page-head" style={{ marginBottom: 0 }}>
-          <h1>Discover families</h1>
+          <h1>{t('nav.discover')}</h1>
           <p>
-            Families whose children yours might connect with — filtered by your preferences,
-            and each one explained.
+            {t('disc.sub')}
           </p>
         </div>
 
         <div className="row row-3">
           <Segmented
-            label="Sort"
+            label={t('disc.sort')}
             value={filters.sort ?? 'match'}
             onChange={(v) => setFilters((f) => ({ ...f, sort: v }))}
             options={[
-              { value: 'match', label: 'Best match' },
-              { value: 'newest', label: 'Newest' },
+              { value: 'match', label: t('disc.sortBest') },
+              { value: 'newest', label: t('disc.sortNewest') },
             ]}
           />
           <button className="btn btn-secondary btn-sm" onClick={() => setShowFilters(true)}>
             <IconFilter size={15} />
-            Filters
+            {t('disc.filters')}
             {activeFilterCount > 0 && <span className="badge badge-brand">{activeFilterCount}</span>}
           </button>
         </div>
@@ -126,19 +129,19 @@ export function Discover() {
       {error && <Alert tone="danger">{error}</Alert>}
 
       {results === null ? (
-        <LoadingBlock label="Finding families…" />
+        <LoadingBlock label={t('disc.finding')} />
       ) : results.length === 0 ? (
         <EmptyState
           icon={<IconCompass size={22} />}
-          title="No families match right now"
+          title={t('disc.emptyTitle')}
           description={
             excluded.length > 0
-              ? `${excluded.length} families were filtered out by your hard limits — travel distance, age range or availability. Widening any of those will usually help.`
-              : 'Try widening your travel distance or acceptable age gap in Settings.'
+              ? t('disc.emptyWithExcluded', { n: excluded.length })
+              : t('disc.emptyPlain')
           }
           action={
             <Link to="/app/settings" className="btn btn-secondary">
-              Adjust preferences
+              {t('disc.adjustPrefs')}
             </Link>
           }
         />
@@ -146,13 +149,13 @@ export function Discover() {
         <>
           <div className="row row-between row-4" style={{ flexWrap: 'wrap' }}>
             <p className="small muted">
-              <strong className="strong">{results.length} families</strong> match your current
-              preferences.
+              <strong className="strong">{t('disc.count', { n: results.length })}</strong>{' '}
+              {t('disc.countRest')}
             </p>
             {excluded.length > 0 && (
               <button className="btn btn-ghost btn-sm" onClick={() => setShowExcluded(true)}>
                 <IconInfo size={14} />
-                {excluded.length} filtered out — why?
+                {t('disc.filteredOut', { n: excluded.length })}
               </button>
             )}
           </div>
@@ -170,9 +173,7 @@ export function Discover() {
           <div className="panel small muted row row-3" style={{ alignItems: 'flex-start' }}>
             <IconInfo size={14} style={{ marginTop: 2, flexShrink: 0 }} />
             <span>
-              These are limited profiles. Exact locations, contact details, schools and photos
-              are not shown here — and your family appears to others under exactly the same
-              rules.
+              {t('disc.limitedProfiles')}
             </span>
           </div>
         </>
@@ -193,33 +194,30 @@ export function Discover() {
       <Modal
         open={showExcluded}
         onClose={() => setShowExcluded(false)}
-        title="Families filtered out"
-        description="These were removed by a hard limit rather than ranked lower."
+        title={t('disc.excludedTitle')}
+        description={t('disc.excludedSub')}
         footer={
           <button className="btn btn-secondary" onClick={() => setShowExcluded(false)}>
-            Close
+            {t('common.close')}
           </button>
         }
       >
         <div className="stack stack-4">
           <Alert tone="info">
-            PlayDate removes families you could not realistically meet — outside your travel
-            radius, outside your age range, or with no overlapping free time — rather than
-            showing them at the bottom of a list. You can widen any of these in Settings.
+            {t('disc.excludedBody')}
           </Alert>
           <ul className="stack stack-2">
             {excluded.map((e, i) => (
               <li key={i} className="row row-between row-3 panel">
                 <span className="small strong">{e.displayName}</span>
-                <span className="tiny muted" style={{ textAlign: 'right' }}>
-                  {e.reason}
+                <span className="tiny muted" style={{ textAlign: 'end' }}>
+                  {renderExclusion(e.reasonKey as never, e.reasonVars, t, locale)}
                 </span>
               </li>
             ))}
           </ul>
           <p className="tiny muted">
-            Only the family name and the reason are shown here — no profile is loaded for a
-            family you are not entitled to see.
+            {t('disc.excludedNote')}
           </p>
         </div>
       </Modal>
@@ -231,16 +229,16 @@ export function Discover() {
           onClose={() => setRequestTarget(null)}
           onSent={() => {
             setRequestTarget(null);
-            toast.push('Request sent. They can accept, decline, or decide later.', 'ok');
+            toast.push(t('disc.requestSent'), 'ok');
             void load();
           }}
         />
       )}
 
       {family && !family.privacy.discoverable && (
-        <Alert tone="warn" title="Your family is hidden from discovery">
+        <Alert tone="warn" title={t('disc.hiddenTitle')}>
           You can browse, but other families will not see you in their results.{' '}
-          <Link to="/app/settings">Change this in Settings</Link>.
+          <Link to="/app/settings">{t('disc.changeInSettings')}</Link>.
         </Alert>
       )}
     </div>
@@ -262,6 +260,7 @@ function FiltersModal({
   filters: DiscoveryFilters;
   onApply: (f: DiscoveryFilters) => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState<DiscoveryFilters>(filters);
 
   useEffect(() => setDraft(filters), [filters, open]);
@@ -278,40 +277,40 @@ function FiltersModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Filter families"
-      description="Narrow your results. Your saved preferences still apply underneath."
+      title={t('disc.filtersTitle')}
+      description={t('disc.filtersSub')}
       footer={
         <>
           <button
             className="btn btn-ghost"
             onClick={() => onApply({ sort: draft.sort ?? 'match' })}
           >
-            Clear all
+            {t('disc.clearAll')}
           </button>
           <button className="btn btn-secondary" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="btn btn-primary" onClick={() => onApply(draft)}>
-            Apply filters
+            {t('disc.applyFilters')}
           </button>
         </>
       }
     >
       <div className="stack stack-6">
         <div className="field">
-          <span className="label">Children's ages</span>
+          <span className="label">{t('disc.childAges')}</span>
           <div className="row row-3">
             <input
               className="input"
               type="number"
               min={1}
               max={17}
-              placeholder="From"
+              placeholder={t('disc.from')}
               value={draft.minAge ?? ''}
               onChange={(e) =>
                 setDraft({ ...draft, minAge: e.target.value ? Number(e.target.value) : undefined })
               }
-              aria-label="Minimum age"
+              aria-label={t('disc.minAge')}
             />
             <span className="muted">to</span>
             <input
@@ -324,15 +323,16 @@ function FiltersModal({
               onChange={(e) =>
                 setDraft({ ...draft, maxAge: e.target.value ? Number(e.target.value) : undefined })
               }
-              aria-label="Maximum age"
+              aria-label={t('disc.maxAge')}
             />
           </div>
         </div>
 
         <div className="field">
           <label className="label" htmlFor="filter-distance">
-            Maximum distance
-            {draft.maxDistanceKm !== undefined && ` — ${draft.maxDistanceKm} km`}
+            {draft.maxDistanceKm !== undefined
+              ? t('disc.maxDistanceVal', { km: draft.maxDistanceKm })
+              : t('disc.maxDistance')}
           </label>
           <input
             id="filter-distance"
@@ -343,11 +343,11 @@ function FiltersModal({
             onChange={(e) => setDraft({ ...draft, maxDistanceKm: Number(e.target.value) })}
             style={{ width: '100%', accentColor: 'var(--brand-600)' }}
           />
-          <div className="hint">Your saved travel limit still applies on top of this.</div>
+          <div className="hint">{t('disc.maxDistanceHint')}</div>
         </div>
 
         <div className="field">
-          <span className="label">Must share at least one of these interests</span>
+          <span className="label">{t('disc.mustShare')}</span>
           <div
             className="row row-wrap"
             style={{ gap: 'var(--sp-2)', maxHeight: 200, overflowY: 'auto' }}
@@ -362,7 +362,7 @@ function FiltersModal({
                   aria-pressed={on}
                 >
                   <span aria-hidden="true">{i.emoji}</span>
-                  {i.label}
+                  {interestLabel(i.id, t)}
                   {on && <IconX size={11} />}
                 </button>
               );
@@ -377,9 +377,9 @@ function FiltersModal({
             onChange={(e) => setDraft({ ...draft, verifiedOnly: e.target.checked })}
           />
           <div>
-            <div className="strong small">Only ID-verified families</div>
+            <div className="strong small">{t('disc.verifiedOnly')}</div>
             <div className="tiny muted">
-              Hides families whose identity verification is still pending.
+              {t('disc.verifiedOnlyDesc')}
             </div>
           </div>
         </label>
@@ -407,6 +407,8 @@ export function RequestModal({
   onClose: () => void;
   onSent: () => void;
 }) {
+  const t = useT();
+  const { locale } = useI18n();
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -418,27 +420,31 @@ export function RequestModal({
       await api.sendConnectionRequest(result.projection.id, note || undefined);
       onSent();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not send the request.');
+      setError(e instanceof Error ? e.message : t('disc.requestError'));
     } finally {
       setBusy(false);
     }
   };
 
-  const reasons = result.match.reasons.filter((r) => r.tone === 'positive').slice(0, 3);
+  const reasons = renderReasons(
+    result.match.reasons.filter((r) => r.tone === 'positive').slice(0, 3),
+    t,
+    locale,
+  );
 
   return (
     <Modal
       open
       onClose={onClose}
       title={`Send a request to ${result.projection.displayName}`}
-      description="They decide whether to connect. Nothing more is shared until they accept."
+      description={t('disc.requestSub')}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="btn btn-primary" onClick={send} disabled={busy}>
-            {busy ? 'Sending…' : 'Send request'}
+            {busy ? t('common.sending') : t('landing.previewSend')}
           </button>
         </>
       }
@@ -446,19 +452,21 @@ export function RequestModal({
       <div className="stack stack-5">
         <div className="panel">
           <div className="tiny muted" style={{ marginBottom: 'var(--sp-2)' }}>
-            They will see why PlayDate suggested you
+            {t('disc.requestWhy')}
           </div>
           <div className="small">{reasons.map((r) => r.text).join(' · ')}</div>
         </div>
 
         <div className="field">
           <label className="label" htmlFor="request-note">
-            Add a short note
-            <span className="muted" style={{ fontWeight: 400 }}> — optional</span>
+            {t('disc.requestNote')}
+            <span className="muted" style={{ fontWeight: 400 }}>
+              {' \u2014 '}
+              {t('common.optional')}
+            </span>
           </label>
           <div className="hint">
-            One note, not a conversation. If they decline, you will not be able to write again —
-            that is how PlayDate prevents unwanted contact.
+            {t('disc.requestNoteHint')}
           </div>
           <textarea
             id="request-note"
@@ -466,14 +474,13 @@ export function RequestModal({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={400}
-            placeholder="Our children seem to share a lot of interests — would you like to connect?"
+            placeholder={t('disc.requestPlaceholder')}
           />
           <div className="tiny muted">{note.length}/400</div>
         </div>
 
         <Alert tone="info">
-          Declining costs them nothing and tells you nothing. If you do not hear back, that is
-          a complete answer in itself.
+          {t('disc.requestDecline')}
         </Alert>
 
         {error && <Alert tone="danger">{error}</Alert>}

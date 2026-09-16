@@ -1,25 +1,31 @@
 import type { Child, Family, AvailabilitySlot, DayOfWeek } from '../types';
-import { interestLabel } from '../interests';
+import type { TKey } from '../../i18n/types';
 import type { Scorer, ScorerOutput, MatchReason } from './types';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-const DAY_LABELS: Record<DayOfWeek, string> = {
-  sun: 'Sunday',
-  mon: 'Monday',
-  tue: 'Tuesday',
-  wed: 'Wednesday',
-  thu: 'Thursday',
-  fri: 'Friday',
-  sat: 'Saturday',
+/**
+ * Day and time-block names are assembled into an availability phrase, which means the
+ * scorer would otherwise be building an English sentence. Instead it emits the pieces
+ * as keys and the UI joins them — `availabilityPhrase` in the UI layer does the
+ * language-specific assembly.
+ */
+const DAY_KEYS: Record<DayOfWeek, TKey> = {
+  sun: 'day.sun',
+  mon: 'day.mon',
+  tue: 'day.tue',
+  wed: 'day.wed',
+  thu: 'day.thu',
+  fri: 'day.fri',
+  sat: 'day.sat',
 };
 
-const BLOCK_LABELS = {
-  morning: 'mornings',
-  afternoon: 'afternoons',
-  evening: 'evenings',
+const BLOCK_KEYS = {
+  morning: 'blockPlural.morning',
+  afternoon: 'blockPlural.afternoon',
+  evening: 'blockPlural.evening',
 } as const;
 
 function slotKey(s: AvailabilitySlot): string {
@@ -118,7 +124,7 @@ export const ageScorer: Scorer = {
       return {
         value: 0,
         blocking: true,
-        blockingReason: 'No children to compare',
+        blockingKey: 'exclude.noChildren',
         reasons: [],
       };
     }
@@ -127,7 +133,8 @@ export const ageScorer: Scorer = {
       return {
         value: 0,
         blocking: true,
-        blockingReason: `Closest ages are ${best} years apart — outside your ${tolerance}-year range`,
+        blockingKey: 'exclude.ageGap',
+        blockingVars: { gap: best, tolerance },
         reasons: [],
       };
     }
@@ -139,15 +146,17 @@ export const ageScorer: Scorer = {
       reasons.push({
         source: 'age',
         tone: 'positive',
-        text: 'Children are the same age',
-        detail: `Both ${bestPair[0].age} years old.`,
+        key: 'reason.sameAge',
+        detailKey: 'reason.sameAgeDetail',
+        detailVars: { age: bestPair[0].age },
       });
     } else if (best <= tolerance) {
       reasons.push({
         source: 'age',
         tone: 'positive',
-        text: `Children are within your preferred age range`,
-        detail: `Closest pairing is ${best} year${best === 1 ? '' : 's'} apart, inside your ${tolerance}-year preference.`,
+        key: 'reason.inAgeRange',
+        detailKey: best === 1 ? 'reason.inAgeRangeDetailOne' : 'reason.inAgeRangeDetail',
+        detailVars: { gap: best, tolerance },
       });
     }
 
@@ -187,15 +196,16 @@ export const interestScorer: Scorer = {
 
     const sharedList = [...allShared];
     if (sharedList.length > 0) {
-      const named = sharedList.slice(0, 3).map(interestLabel).join(', ');
+      // The named interests are passed as ids; the UI translates and joins them with
+      // the right separator for its locale.
+      const named = sharedList.slice(0, 3).join('\u0000');
       reasons.push({
         source: 'interests',
         tone: 'positive',
-        text:
-          sharedList.length === 1
-            ? `1 shared interest: ${named}`
-            : `${sharedList.length} shared interests`,
-        detail: sharedList.length > 1 ? `Including ${named}.` : undefined,
+        key: sharedList.length === 1 ? 'reason.oneSharedInterest' : 'reason.sharedInterests',
+        vars: { n: sharedList.length, named },
+        detailKey: sharedList.length > 1 ? 'reason.sharedInterestsDetail' : undefined,
+        detailVars: sharedList.length > 1 ? { named } : undefined,
       });
     }
 
@@ -204,8 +214,9 @@ export const interestScorer: Scorer = {
       reasons.push({
         source: 'interests',
         tone: 'positive',
-        text: `${interestLabel(id)} matters to both families`,
-        detail: 'You marked this highly important, and their child is enthusiastic about it too.',
+        key: 'reason.mattersToBoth',
+        vars: { interest: id },
+        detailKey: 'reason.mattersToBothDetail',
       });
     }
 
@@ -213,8 +224,8 @@ export const interestScorer: Scorer = {
       reasons.push({
         source: 'interests',
         tone: 'note',
-        text: 'No overlapping interests yet',
-        detail: 'Children often find common ground in person — this is worth weighing, not a dealbreaker.',
+        key: 'reason.noOverlap',
+        detailKey: 'reason.noOverlapDetail',
       });
     }
 
@@ -226,15 +237,15 @@ export const interestScorer: Scorer = {
 // Distance
 // ---------------------------------------------------------------------------
 
-/** Coarse band. Never an exact figure — see docs/ARCHITECTURE.md §3.1. */
-export function distanceBand(km: number): string {
-  if (km < 1) return 'Under 1 km';
-  if (km < 2) return '1–2 km';
-  if (km < 4) return '2–4 km';
-  if (km < 7) return '4–7 km';
-  if (km < 12) return '7–12 km';
-  if (km < 20) return '12–20 km';
-  return 'Over 20 km';
+/** Coarse band as a translation key. Never an exact figure — see docs/ARCHITECTURE.md §3.1. */
+export function distanceBandKey(km: number): TKey {
+  if (km < 1) return 'dist.under1';
+  if (km < 2) return 'dist.1to2';
+  if (km < 4) return 'dist.2to4';
+  if (km < 7) return 'dist.4to7';
+  if (km < 12) return 'dist.7to12';
+  if (km < 20) return 'dist.12to20';
+  return 'dist.over20';
 }
 
 export const distanceScorer: Scorer = {
@@ -250,7 +261,8 @@ export const distanceScorer: Scorer = {
       return {
         value: 0,
         blocking: true,
-        blockingReason: `About ${distanceBand(km)} away — beyond the ${limit} km either family travels`,
+        blockingKey: 'exclude.tooFar',
+        blockingVars: { band: distanceBandKey(km), km: limit },
         reasons: [],
       };
     }
@@ -262,8 +274,11 @@ export const distanceScorer: Scorer = {
         {
           source: 'distance',
           tone: 'positive',
-          text: `Families are approximately ${distanceBand(km)} apart`,
-          detail: `Within the ${viewer.preferences.maxTravelKm} km you're happy to travel.`,
+          key: 'reason.distance',
+          // `band` is itself a key; the UI resolves it before interpolating.
+          vars: { band: distanceBandKey(km) },
+          detailKey: 'reason.distanceDetail',
+          detailVars: { km: viewer.preferences.maxTravelKm },
         },
       ],
     };
@@ -286,7 +301,7 @@ export const availabilityScorer: Scorer = {
       return {
         value: 0,
         blocking: true,
-        blockingReason: 'No overlapping availability',
+        blockingKey: 'exclude.noAvailability',
         reasons: [],
       };
     }
@@ -294,16 +309,18 @@ export const availabilityScorer: Scorer = {
     // Three overlapping slots is plenty of room to find a time.
     const value = clamp01(overlap.length / 3);
 
-    // Describe the overlap the way a parent would say it out loud.
+    // Emit the overlap as day/block key pairs; the UI assembles the phrase in its own
+    // language, since word order and conjunctions differ between English and Hebrew.
     const byDay = new Map<DayOfWeek, string[]>();
     for (const s of overlap) {
       const list = byDay.get(s.day) ?? [];
-      list.push(BLOCK_LABELS[s.block]);
+      list.push(BLOCK_KEYS[s.block]);
       byDay.set(s.day, list);
     }
     const phrases = [...byDay.entries()]
       .slice(0, 2)
-      .map(([day, blocks]) => `${DAY_LABELS[day]} ${blocks.join(' and ')}`);
+      .map(([day, blocks]) => [DAY_KEYS[day], ...blocks].join('\u0001'))
+      .join('\u0000');
 
     return {
       value,
@@ -311,11 +328,10 @@ export const availabilityScorer: Scorer = {
         {
           source: 'availability',
           tone: 'positive',
-          text: `Availability overlaps on ${phrases.join(', ')}`,
-          detail:
-            overlap.length > 2
-              ? `${overlap.length} overlapping time slots in total.`
-              : undefined,
+          key: 'reason.availability',
+          vars: { phrases },
+          detailKey: overlap.length > 2 ? 'reason.availabilityDetail' : undefined,
+          detailVars: overlap.length > 2 ? { n: overlap.length } : undefined,
         },
       ],
     };
@@ -325,15 +341,6 @@ export const availabilityScorer: Scorer = {
 // ---------------------------------------------------------------------------
 // Playdate style
 // ---------------------------------------------------------------------------
-
-const STYLE_LABELS: Record<string, string> = {
-  parents_stay: 'parents staying for the visit',
-  drop_off_ok: 'drop-off playdates',
-  public_places_only: 'meeting in public places',
-  home_visits_ok: 'home visits',
-  small_groups: 'small groups',
-  structured_activities: 'a planned activity',
-};
 
 export const styleScorer: Scorer = {
   id: 'style',
@@ -352,7 +359,9 @@ export const styleScorer: Scorer = {
       reasons.push({
         source: 'style',
         tone: 'positive',
-        text: `Both families prefer ${shared.slice(0, 2).map((s) => STYLE_LABELS[s] ?? s).join(' and ')}`,
+        key: 'reason.bothPrefer',
+        // Style ids; the UI maps them to `stylePhrase.*` and joins.
+        vars: { styles: shared.slice(0, 2).join('\u0000') },
       });
     }
 
@@ -361,8 +370,8 @@ export const styleScorer: Scorer = {
       reasons.push({
         source: 'style',
         tone: 'note',
-        text: 'They are open to drop-off playdates; you prefer to stay',
-        detail: 'Worth agreeing on before the first meeting.',
+        key: 'reason.dropOffMismatch',
+        detailKey: 'reason.dropOffMismatchDetail',
       });
     }
 

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { api, type ConversationView } from '../../services';
 import { useApp } from '../../state/AppContext';
 import { scanMessage, peakSeverity } from '../../domain/safety/contentScan';
+import { useI18n, useT } from '../../i18n';
+import { useFormat } from '../../i18n/format';
 import type { SafetyFlag } from '../../domain/types';
 import {
   Alert,
@@ -25,11 +27,13 @@ import {
   IconMessage,
   IconShieldCheck,
 } from '../../components/ui/Icons';
-import { timeAgo } from './Requests';
 
 export function Messages() {
   const { family } = useApp();
   const toast = useToast();
+  const t = useT();
+  const f = useFormat();
+  const { d } = useI18n();
   const [threads, setThreads] = useState<ConversationView[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
@@ -77,7 +81,7 @@ export function Messages() {
         if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
       });
     } catch (e) {
-      toast.push(e instanceof Error ? e.message : 'Could not send.', 'error');
+      toast.push(e instanceof Error ? e.message : t('msg.couldNotSend'), 'error');
     } finally {
       setSending(false);
     }
@@ -89,16 +93,16 @@ export function Messages() {
     return (
       <div className="stack stack-6">
         <div className="page-head">
-          <h1>Messages</h1>
-          <p>Private conversations between parents, opened only after you both agree to connect.</p>
+          <h1>{t('nav.messages')}</h1>
+          <p>{t('msg.subShort')}</p>
         </div>
         <EmptyState
           icon={<IconMessage size={22} />}
-          title="No conversations yet"
-          description="A conversation opens when you and another family both agree to connect. There is no way for anyone to message you before that."
+          title={t('msg.emptyTitle')}
+          description={t('msg.emptyDesc')}
           action={
             <Link to="/app/discover" className="btn btn-primary">
-              Discover families
+              {t('nav.discover')}
             </Link>
           }
         />
@@ -111,35 +115,34 @@ export function Messages() {
   return (
     <div className="stack stack-6">
       <div className="page-head">
-        <h1>Messages</h1>
+        <h1>{t('nav.messages')}</h1>
         <p>
-          Parent to parent, always. There is no child-to-child messaging on PlayDate and there
-          never will be.
+          {t('msg.sub')}
         </p>
       </div>
 
       <div className="messages-layout">
         {/* ---- Thread list --------------------------------------------- */}
         <div className="thread-list">
-          {threads.map((t) => {
-            const last = t.conversation.messages[t.conversation.messages.length - 1];
+          {threads.map((th) => {
+            const last = th.conversation.messages[th.conversation.messages.length - 1];
             return (
               <button
-                key={t.conversation.id}
+                key={th.conversation.id}
                 className="thread-item"
-                aria-current={t.conversation.id === activeId}
-                onClick={() => setActiveId(t.conversation.id)}
+                aria-current={th.conversation.id === activeId}
+                onClick={() => setActiveId(th.conversation.id)}
               >
-                <Avatar name={t.otherFamily.displayName} color="var(--brand-600)" size="md" square />
+                <Avatar name={th.otherFamily.displayName} color="var(--brand-600)" size="md" square />
                 <div className="grow" style={{ minWidth: 0 }}>
                   <div className="row row-between row-2">
                     <span
                       className="strong small"
                       style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                     >
-                      {t.otherFamily.displayName}
+                      {th.otherFamily.displayName}
                     </span>
-                    {last && <span className="tiny muted nowrap">{timeAgo(last.sentAt)}</span>}
+                    {last && <span className="tiny muted nowrap">{f.timeAgo(last.sentAt)}</span>}
                   </div>
                   <div
                     className="tiny muted"
@@ -152,7 +155,7 @@ export function Messages() {
                   >
                     {last
                       ? `${last.senderFamilyId === family.id ? 'You: ' : ''}${last.body}`
-                      : 'No messages yet'}
+                      : t('msg.noMessagesYet')}
                   </div>
                 </div>
               </button>
@@ -170,8 +173,9 @@ export function Messages() {
                   <div style={{ minWidth: 0 }}>
                     <div className="strong small">{active.otherFamily.displayName}</div>
                     <div className="tiny muted">
-                      {active.otherFamily.locationLabel} · {active.otherFamily.childCount}{' '}
-                      {active.otherFamily.childCount === 1 ? 'child' : 'children'}
+                      {f.locationLabel(active.otherFamily.location)} ·{' '}
+                      {active.otherFamily.childCount}{' '}
+                      {active.otherFamily.childCount === 1 ? t('common.child') : t('common.children')}
                     </div>
                   </div>
                 </div>
@@ -182,7 +186,7 @@ export function Messages() {
                     onClick={() => setPlanning(true)}
                   >
                     <IconCalendar size={14} />
-                    Plan a playdate
+                    {t('msg.planPlaydate')}
                   </button>
                 </div>
               </div>
@@ -190,8 +194,7 @@ export function Messages() {
               <div className="conversation-body" ref={bodyRef}>
                 {active.conversation.messages.length === 0 && (
                   <div className="panel small muted center">
-                    You are connected. Say hello — most parents start by naming what their
-                    children have in common.
+                    {t('msg.sayHello')}
                   </div>
                 )}
 
@@ -213,7 +216,7 @@ export function Messages() {
                           className="tiny muted"
                           style={{ marginTop: 4, textAlign: mine ? 'right' : 'left' }}
                         >
-                          {new Date(m.sentAt).toLocaleString('en-GB', {
+                          {d(m.sentAt, {
                             weekday: 'short',
                             hour: '2-digit',
                             minute: '2-digit',
@@ -235,12 +238,11 @@ export function Messages() {
                     <div className="stack stack-2">
                       {draftFlags.map((f, i) => (
                         <div key={i} className="small">
-                          {f.message}
+                          {t(f.messageKey as never)}
                         </div>
                       ))}
                       <div className="tiny" style={{ opacity: 0.8 }}>
-                        This is only shown to you. Your message is not blocked and the other
-                        family is not told.
+                        {t('msg.onlyYouSee')}
                       </div>
                     </div>
                   </div>
@@ -257,12 +259,12 @@ export function Messages() {
                         void send();
                       }
                     }}
-                    placeholder="Write a message…"
-                    aria-label="Message"
+                    placeholder={t('msg.placeholder')}
+                    aria-label={t('msg.label')}
                     maxLength={2000}
                   />
                   <button className="btn btn-primary" onClick={send} disabled={sending || !draft.trim()}>
-                    {sending ? 'Sending…' : 'Send'}
+                    {sending ? t('common.sending') : t('common.send')}
                   </button>
                 </div>
               </div>
@@ -273,26 +275,26 @@ export function Messages() {
               <div className="row row-between row-4" style={{ flexWrap: 'wrap' }}>
                 <div className="row row-3 small muted">
                   <IconShieldCheck size={16} />
-                  <span>Safety tools are always available in every conversation.</span>
+                  <span>{t('msg.safetyAlways')}</span>
                 </div>
                 <div className="row row-2 row-wrap">
                   <Link to="/app/safety" className="btn btn-ghost btn-sm">
-                    Safety resources
+                    {t('msg.safetyResources')}
                   </Link>
                   <button className="btn btn-ghost btn-sm" onClick={() => setLeaving(true)}>
                     <IconLogout size={14} />
-                    Leave
+                    {t('common.leave')}
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setBlocking(true)}>
                     <IconBlock size={14} />
-                    Block
+                    {t('common.block')}
                   </button>
                   <button
                     className="btn btn-danger-quiet btn-sm"
                     onClick={() => setReporting(true)}
                   >
                     <IconFlag size={14} />
-                    Report
+                    {t('common.report')}
                   </button>
                 </div>
               </div>
@@ -335,11 +337,11 @@ export function Messages() {
         <Modal
           open
           onClose={() => setLeaving(false)}
-          title="Leave this conversation?"
+          title={t('msg.leaveTitle')}
           footer={
             <>
               <button className="btn btn-secondary" onClick={() => setLeaving(false)}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="btn btn-danger"
@@ -347,23 +349,21 @@ export function Messages() {
                   await api.leaveConversation(active.conversation.id);
                   setLeaving(false);
                   setActiveId(null);
-                  toast.push('You have left the conversation.', 'ok');
+                  toast.push(t('msg.left'), 'ok');
                   await load();
                 }}
               >
-                Leave conversation
+                {t('msg.leaveConfirm')}
               </button>
             </>
           }
         >
           <div className="stack stack-4">
             <p>
-              The conversation closes for both of you and cannot be reopened. You do not need a
-              reason, and {active.otherFamily.displayName} is not told why.
+              {t('msg.leaveBody', { name: active.otherFamily.displayName })}
             </p>
             <Alert tone="info">
-              If something concerned you, consider reporting it as well. Leaving stops the
-              contact; only a report tells our safety team.
+              {t('msg.leaveAlert')}
             </Alert>
           </div>
         </Modal>
@@ -376,7 +376,7 @@ export function Messages() {
           onClose={() => setPlanning(false)}
           onDone={() => {
             setPlanning(false);
-            toast.push('PlayDate request sent.', 'ok');
+            toast.push(t('msg.playdateSent'), 'ok');
           }}
         />
       )}

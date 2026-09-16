@@ -10,7 +10,11 @@ import {
   validatePassword,
   validatePhone,
   validateVerificationCode,
+  type ValidationError,
 } from '../../domain/validation';
+import { useT } from '../../i18n';
+import type { TKey } from '../../i18n/types';
+import { useFormat } from '../../i18n/format';
 import type {
   AvailabilitySlot,
   ChildInterest,
@@ -39,7 +43,7 @@ import {
   IconShieldCheck,
   IconTrash,
 } from '../../components/ui/Icons';
-import { IMPORTANCE_LABELS } from '../../domain/interests';
+import { importanceLabels } from '../../domain/interests';
 
 /**
  * The eleven-step onboarding.
@@ -49,19 +53,24 @@ import { IMPORTANCE_LABELS } from '../../domain/interests';
  * without having passed every gate before it.
  */
 
+/**
+ * Step labels are dictionary KEYS. The array is module scope and so cannot call the
+ * translate hook; `Onboarding` resolves them at render time, which also means the
+ * sidebar relabels itself when the language changes mid-signup.
+ */
 const STEPS = [
-  'Create account',
-  'Verify email & phone',
-  'Identity verification',
-  'Family profile',
-  'Add children',
-  'Interests & importance',
-  'Location preferences',
-  'Availability',
-  'Privacy preferences',
-  'Safety guidelines',
-  'Ready',
-] as const;
+  'ob.step1',
+  'ob.step2',
+  'ob.step3',
+  'safetyPage.chain2',
+  'ob.step5',
+  'ob.step6',
+  'ob.step7',
+  'ob.step8',
+  'ob.step9',
+  'ob.step10',
+  'ob.step11',
+] as const satisfies readonly TKey[];
 
 interface DraftChild {
   firstName: string;
@@ -95,6 +104,8 @@ export function Onboarding() {
     if (session && family) navigate('/app', { replace: true });
   }, [session, family, navigate]);
 
+  const t = useT();
+  const fmt = useFormat();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +115,7 @@ export function Onboarding() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, ValidationError>>({});
 
   // Step 2
   const [emailCode, setEmailCode] = useState('');
@@ -168,14 +179,14 @@ export function Onboarding() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const fail = (e: unknown) => setError(e instanceof Error ? e.message : 'Something went wrong.');
+  const fail = (e: unknown) => setError(e instanceof Error ? e.message : t('common.somethingWrong'));
 
   /* ---------------------------------------------------------------------- */
   /* Step handlers                                                           */
   /* ---------------------------------------------------------------------- */
 
   const submitAccount = async () => {
-    const errs: Record<string, string> = {};
+    const errs: Record<string, ValidationError> = {};
     const e1 = validateEmail(email);
     const e2 = validatePhone(phone);
     const e3 = validatePassword(password);
@@ -210,7 +221,7 @@ export function Onboarding() {
       setEmailDone(true);
       setFieldErrors({});
     } catch (e) {
-      setFieldErrors({ emailCode: e instanceof Error ? e.message : 'Incorrect code.' });
+      setFieldErrors({ emailCode: { key: 'val.code.wrong' } });
     } finally {
       setBusy(false);
     }
@@ -225,17 +236,17 @@ export function Onboarding() {
       setPhoneDone(true);
       setFieldErrors({});
     } catch (e) {
-      setFieldErrors({ phoneCode: e instanceof Error ? e.message : 'Incorrect code.' });
+      setFieldErrors({ phoneCode: { key: 'val.code.wrong' } });
     } finally {
       setBusy(false);
     }
   };
 
   const startIdentity = async () => {
-    const errs: Record<string, string> = {};
-    if (!legalFirst.trim()) errs.legalFirst = 'Enter your legal first name';
-    if (!legalLast.trim()) errs.legalLast = 'Enter your legal last name';
-    if (!dob) errs.dob = 'Enter your date of birth';
+    const errs: Record<string, ValidationError> = {};
+    if (!legalFirst.trim()) errs.legalFirst = { key: 'val.legalFirst' };
+    if (!legalLast.trim()) errs.legalLast = { key: 'val.legalLast' };
+    if (!dob) errs.dob = { key: 'val.dob' };
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -268,9 +279,9 @@ export function Onboarding() {
   };
 
   const submitFamily = async () => {
-    const errs: Record<string, string> = {};
-    const e1 = validateLength(familyName, 'Family name', 2, 80);
-    const e2 = validateLength(generalArea, 'General area', 2, 80);
+    const errs: Record<string, ValidationError> = {};
+    const e1 = validateLength(familyName, 'val.familyName', 2, 80);
+    const e2 = validateLength(generalArea, 'val.generalArea', 2, 80);
     if (e1) errs.familyName = e1;
     if (e2) errs.generalArea = e2;
     setFieldErrors(errs);
@@ -360,20 +371,19 @@ export function Onboarding() {
           className="small"
           style={{ color: 'rgba(255,255,255,0.72)', marginTop: 'var(--sp-5)', lineHeight: 1.6 }}
         >
-          Every step here is a gate. Discovery does not open until verification is complete —
-          that is what keeps PlayDate to verified parents.
+          {t('ob.asideP')}
         </p>
 
         <div className="onboarding-steps">
-          {STEPS.map((label, i) => (
+          {STEPS.map((labelKey, i) => (
             <div
-              key={label}
+              key={labelKey}
               className={`onboarding-step${i === step ? ' active' : ''}${i < step ? ' done' : ''}`}
             >
               <span className="onboarding-step-dot">
                 {i < step ? <IconCheck size={11} /> : i + 1}
               </span>
-              {label}
+              {t(labelKey)}
             </div>
           ))}
         </div>
@@ -384,7 +394,7 @@ export function Onboarding() {
             className="small"
             style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}
           >
-            ← Back to the homepage
+            <span aria-hidden="true">←</span> {t('ob.backHome')}
           </Link>
         </div>
       </aside>
@@ -398,7 +408,7 @@ export function Onboarding() {
           </div>
 
           <div className="tiny muted" style={{ marginBottom: 'var(--sp-2)' }}>
-            Step {step + 1} of {STEPS.length}
+            {t('ob.stepOf', { n: step + 1, total: STEPS.length })}
           </div>
 
           {error && (
@@ -411,14 +421,13 @@ export function Onboarding() {
           {step === 0 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>Create your parent account</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('how.p1.title')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  This account belongs to you, the parent. Your children will be added to your
-                  family profile as dependents — they never get accounts of their own.
+                  {t('ob.acc.p')}
                 </p>
               </div>
 
-              <Field label="Email address" htmlFor="ob-email" error={fieldErrors.email}>
+              <Field label={t('login.email')} htmlFor="ob-email" error={fmt.errorText(fieldErrors.email)}>
                 <input
                   id="ob-email"
                   className="input"
@@ -432,10 +441,10 @@ export function Onboarding() {
               </Field>
 
               <Field
-                label="Mobile number"
+                label={t('ob.acc.phone')}
                 htmlFor="ob-phone"
-                error={fieldErrors.phone}
-                hint="Used to verify you are a real person, and to sign in securely. Never shown to other families."
+                error={fmt.errorText(fieldErrors.phone)}
+                hint={t('ob.acc.phoneHint')}
               >
                 <input
                   id="ob-phone"
@@ -449,7 +458,7 @@ export function Onboarding() {
                 />
               </Field>
 
-              <Field label="Password" htmlFor="ob-password" error={fieldErrors.password}>
+              <Field label={t('login.password')} htmlFor="ob-password" error={fmt.errorText(fieldErrors.password)}>
                 <div style={{ position: 'relative' }}>
                   <input
                     id="ob-password"
@@ -465,7 +474,7 @@ export function Onboarding() {
                     type="button"
                     className="btn-icon"
                     onClick={() => setShowPassword((s) => !s)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                     style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)' }}
                   >
                     {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
@@ -493,26 +502,24 @@ export function Onboarding() {
                       ))}
                     </div>
                     <div className="tiny muted">
-                      {strength.label}
-                      {strength.suggestions[0] ? ` — ${strength.suggestions[0]}` : ''}
+                      {t(strength.labelKey)}
+                      {strength.suggestionKeys[0] ? ` — ${t(strength.suggestionKeys[0])}` : ''}
                     </div>
                   </div>
                 )}
               </Field>
 
               <PrototypeNote>
-                In production, passwords are hashed server-side with Argon2id and checked
-                against a breached-password list. This prototype has no server, so it stores a
-                placeholder — never a real password.
+                {t('proto.password')}
               </PrototypeNote>
 
               <div className="row row-3">
                 <button className="btn btn-primary" onClick={submitAccount} disabled={busy}>
-                  {busy ? 'Creating…' : 'Create account'}
+                  {busy ? t('ob.acc.creating') : t('nav.createAccount')}
                   <IconArrowRight size={16} />
                 </button>
                 <Link to="/login" className="btn btn-ghost">
-                  I already have an account
+                  {t('ob.acc.haveAccount')}
                 </Link>
               </div>
             </div>
@@ -522,17 +529,14 @@ export function Onboarding() {
           {step === 1 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>Verify your email and phone</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('ob.verify.h1')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  Two codes. This is the first layer of keeping PlayDate to real parents, and
-                  it makes throwaway accounts much harder to create in bulk.
+                  {t('ob.verify.p')}
                 </p>
               </div>
 
               <PrototypeNote>
-                There is no email or SMS provider in this prototype, so the codes are shown to
-                you below. A real system sends them out of band and never returns them to the
-                browser.
+                {t('proto.codes')}
               </PrototypeNote>
 
               <div className="card card-pad stack stack-4">
@@ -542,7 +546,7 @@ export function Onboarding() {
                 </div>
                 {!emailDone && (
                   <>
-                    <Field label="6-digit code" htmlFor="ob-ecode" error={fieldErrors.emailCode}>
+                    <Field label={t('ob.verify.code')} htmlFor="ob-ecode" error={fmt.errorText(fieldErrors.emailCode)}>
                       <input
                         id="ob-ecode"
                         className="input"
@@ -560,7 +564,7 @@ export function Onboarding() {
                       </div>
                     )}
                     <button className="btn btn-secondary btn-sm" onClick={confirmEmail} disabled={busy}>
-                      Confirm email
+                      {t('ob.verify.confirmEmail')}
                     </button>
                   </>
                 )}
@@ -573,7 +577,7 @@ export function Onboarding() {
                 </div>
                 {!phoneDone && (
                   <>
-                    <Field label="6-digit code" htmlFor="ob-pcode" error={fieldErrors.phoneCode}>
+                    <Field label={t('ob.verify.code')} htmlFor="ob-pcode" error={fmt.errorText(fieldErrors.phoneCode)}>
                       <input
                         id="ob-pcode"
                         className="input"
@@ -591,7 +595,7 @@ export function Onboarding() {
                       </div>
                     )}
                     <button className="btn btn-secondary btn-sm" onClick={confirmPhone} disabled={busy}>
-                      Confirm phone
+                      {t('ob.verify.confirmPhone')}
                     </button>
                   </>
                 )}
@@ -600,10 +604,9 @@ export function Onboarding() {
               <label className="checkbox" data-checked={enable2fa}>
                 <input type="checkbox" checked={enable2fa} onChange={(e) => setEnable2fa(e.target.checked)} />
                 <div>
-                  <div className="strong small">Turn on two-factor authentication</div>
+                  <div className="strong small">{t('ob.verify.2fa')}</div>
                   <div className="tiny muted">
-                    Requires a second factor when you sign in. Shown to other families as a
-                    trust signal.
+                    {t('ob.verify.2faDesc')}
                   </div>
                 </div>
               </label>
@@ -618,7 +621,7 @@ export function Onboarding() {
                   <IconArrowRight size={16} />
                 </button>
                 {(!emailDone || !phoneDone) && (
-                  <span className="small muted">Verify both to continue.</span>
+                  <span className="small muted">{t('ob.verify.bothToContinue')}</span>
                 )}
               </div>
             </div>
@@ -630,22 +633,18 @@ export function Onboarding() {
               <div>
                 <span className="eyebrow">
                   <IconShieldCheck size={13} />
-                  Identity verification
+                  {t('ob.step3')}
                 </span>
                 <h1 style={{ fontSize: 'var(--text-2xl)', marginTop: 'var(--sp-2)' }}>
-                  Confirm you are who you say you are
+                  {t('ob.id.h1')}
                 </h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  This platform involves children, so we verify every parent before they can
-                  see any information about another family's children. This is a gate, not a
-                  badge.
+                  {t('ob.id.p')}
                 </p>
               </div>
 
-              <Alert tone="brand" title="Where your ID actually goes">
-                Your document goes directly to the identity provider — Persona, Stripe
-                Identity, Veriff or similar. PlayDate never receives or stores the image. We
-                keep a decision and an opaque reference, nothing more.
+              <Alert tone="brand" title={t('ob.id.whereTitle')}>
+                {t('ob.id.whereBody')}
               </Alert>
 
               {idStatus === 'unstarted' && (
@@ -657,7 +656,7 @@ export function Onboarding() {
                       gap: 'var(--sp-4)',
                     }}
                   >
-                    <Field label="Legal first name" htmlFor="ob-lf" error={fieldErrors.legalFirst}>
+                    <Field label={t('ob.id.legalFirst')} htmlFor="ob-lf" error={fmt.errorText(fieldErrors.legalFirst)}>
                       <input
                         id="ob-lf"
                         className="input"
@@ -666,7 +665,7 @@ export function Onboarding() {
                         autoComplete="given-name"
                       />
                     </Field>
-                    <Field label="Legal last name" htmlFor="ob-ll" error={fieldErrors.legalLast}>
+                    <Field label={t('ob.id.legalLast')} htmlFor="ob-ll" error={fmt.errorText(fieldErrors.legalLast)}>
                       <input
                         id="ob-ll"
                         className="input"
@@ -677,7 +676,7 @@ export function Onboarding() {
                     </Field>
                   </div>
 
-                  <Field label="Date of birth" htmlFor="ob-dob" error={fieldErrors.dob}>
+                  <Field label={t('ob.id.dob')} htmlFor="ob-dob" error={fmt.errorText(fieldErrors.dob)}>
                     <input
                       id="ob-dob"
                       className="input"
@@ -690,13 +689,12 @@ export function Onboarding() {
                   <div className="panel small muted row row-3" style={{ alignItems: 'flex-start' }}>
                     <IconLock size={14} style={{ marginTop: 2, flexShrink: 0 }} />
                     <span>
-                      These details are stored separately from your family profile and are never
-                      shown to other families. They exist only to verify you.
+                      {t('ob.id.storedSeparately')}
                     </span>
                   </div>
 
                   <button className="btn btn-primary" onClick={startIdentity} disabled={busy}>
-                    {busy ? 'Starting…' : 'Start verification'}
+                    {busy ? t('ob.id.starting') : t('ob.id.start')}
                     <IconArrowRight size={16} />
                   </button>
                 </>
@@ -705,23 +703,20 @@ export function Onboarding() {
               {idStatus === 'pending' && (
                 <div className="card card-pad stack stack-5">
                   <div className="row row-3">
-                    <span className="badge badge-pending">Verification pending</span>
+                    <span className="badge badge-pending">{t('verif.pending.label')}</span>
                   </div>
                   <p className="muted">
-                    In production you would now be handed to the provider to photograph your ID
-                    and take a selfie, and the decision would come back by webhook — usually in
-                    under a minute.
+                    {t('ob.id.pendingP')}
                   </p>
                   <PrototypeNote>
-                    No provider is connected. Choose an outcome below to continue the demo. This
-                    is a simulation, not a verification.
+                    {t('proto.verifNoProvider')}
                   </PrototypeNote>
                   <div className="row row-3 row-wrap">
                     <button className="btn btn-primary" onClick={() => resolveIdentity('verified')} disabled={busy}>
-                      Simulate: verified
+                      {t('ob.id.simVerified')}
                     </button>
                     <button className="btn btn-secondary" onClick={() => resolveIdentity('failed')} disabled={busy}>
-                      Simulate: failed
+                      {t('ob.id.simFailed')}
                     </button>
                   </div>
                 </div>
@@ -733,8 +728,7 @@ export function Onboarding() {
                     <IconCheck size={11} /> Simulated verification complete
                   </span>
                   <p className="muted">
-                    Discovery is now unlocked. Other families will see “Parent verified” on your
-                    family profile — but never your legal name or date of birth.
+                    {t('ob.id.doneP')}
                   </p>
                   <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => go(3)}>
                     Continue
@@ -746,19 +740,17 @@ export function Onboarding() {
               {idStatus === 'failed' && (
                 <div className="card card-pad stack stack-4">
                   <span className="badge badge-warn" style={{ alignSelf: 'flex-start' }}>
-                    Verification failed
+                    {t('verif.failed.label')}
                   </span>
                   <p className="muted">
-                    The document could not be read clearly. You can retry now, or build your
-                    family profile first and verify later — but discovery stays closed until
-                    verification succeeds.
+                    {t('ob.id.failedP')}
                   </p>
                   <div className="row row-3 row-wrap">
                     <button className="btn btn-secondary" onClick={() => setIdStatus('unstarted')}>
-                      Try again
+                      {t('common.retry')}
                     </button>
                     <button className="btn btn-ghost" onClick={() => go(3)}>
-                      Continue and verify later
+                      {t('ob.id.verifyLater')}
                     </button>
                   </div>
                 </div>
@@ -770,17 +762,16 @@ export function Onboarding() {
           {step === 3 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>Create your family profile</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('ob.fam.h1')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  One profile for the whole family — this is what other families see, not a
-                  page about any individual child.
+                  {t('ob.fam.p')}
                 </p>
               </div>
 
               <Field
-                label="Family name"
+                label={t('ob.fam.name')}
                 htmlFor="ob-fname"
-                error={fieldErrors.familyName}
+                error={fmt.errorText(fieldErrors.familyName)}
                 hint='Usually your surname. Shown as "The Cohen Family".'
               >
                 <input
@@ -793,25 +784,25 @@ export function Onboarding() {
               </Field>
 
               <Field
-                label="General area"
+                label={t('ob.fam.area')}
                 htmlFor="ob-area"
-                error={fieldErrors.generalArea}
-                hint="Broad enough that it does not identify where you live, e.g. “Jerusalem area”."
+                error={fmt.errorText(fieldErrors.generalArea)}
+                hint={t('ob.fam.areaHint')}
               >
                 <input
                   id="ob-area"
                   className="input"
                   value={generalArea}
                   onChange={(e) => setGeneralArea(e.target.value)}
-                  placeholder="Jerusalem area"
+                  placeholder={t('landing.previewArea')}
                 />
               </Field>
 
               <Field
-                label="Neighbourhood"
+                label={t('ob.fam.hood')}
                 htmlFor="ob-hood"
                 optional
-                hint="Only ever shown to families you have connected with, and only if you choose that setting."
+                hint={t('ob.fam.hoodHint')}
               >
                 <input
                   id="ob-hood"
@@ -822,7 +813,7 @@ export function Onboarding() {
                 />
               </Field>
 
-              <Field label="Languages spoken at home" htmlFor="ob-lang" optional>
+              <Field label={t('ob.fam.langs')} htmlFor="ob-lang" optional>
                 <input
                   id="ob-lang"
                   className="input"
@@ -833,10 +824,10 @@ export function Onboarding() {
               </Field>
 
               <Field
-                label="A short introduction"
+                label={t('ob.fam.about')}
                 htmlFor="ob-about"
                 optional
-                hint="A sentence or two about your family. Avoid anything that identifies where you live or which school your children attend."
+                hint={t('ob.fam.aboutHint')}
               >
                 <textarea
                   id="ob-about"
@@ -844,17 +835,17 @@ export function Onboarding() {
                   value={about}
                   onChange={(e) => setAbout(e.target.value)}
                   maxLength={600}
-                  placeholder="We moved here last year and the kids are still finding their feet…"
+                  placeholder={t('ob.fam.aboutPlaceholder')}
                 />
               </Field>
 
               <div className="row row-3">
                 <button className="btn btn-ghost" onClick={() => go(2)}>
                   <IconChevronLeft size={16} />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button className="btn btn-primary" onClick={submitFamily} disabled={busy}>
-                  {busy ? 'Saving…' : 'Continue'}
+                  {busy ? t('common.saving') : t('common.continue')}
                   <IconArrowRight size={16} />
                 </button>
               </div>
@@ -865,10 +856,9 @@ export function Onboarding() {
           {step === 4 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>Add your children</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('how.p3.i2')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  We ask for an age in years, not a date of birth, and never for a surname or a
-                  school. You choose what other families can see in a later step.
+                  {t('ob.kids.p')}
                 </p>
               </div>
 
@@ -880,7 +870,7 @@ export function Onboarding() {
                       className={`pill${i === activeChild ? ' pill-strong' : ''}`}
                       onClick={() => setActiveChild(i)}
                     >
-                      {c.firstName || `Child ${i + 1}`}
+                      {c.firstName || t('common.childN', { n: i + 1 })}
                     </button>
                   ))}
                 </div>
@@ -894,7 +884,7 @@ export function Onboarding() {
                     gap: 'var(--sp-4)',
                   }}
                 >
-                  <Field label="First name" htmlFor="ob-cname">
+                  <Field label={t('ob.kids.firstName')} htmlFor="ob-cname">
                     <input
                       id="ob-cname"
                       className="input"
@@ -903,13 +893,13 @@ export function Onboarding() {
                       placeholder="Noa"
                     />
                   </Field>
-                  <Field label="Nickname" htmlFor="ob-cnick" optional>
+                  <Field label={t('ob.kids.nickname')} htmlFor="ob-cnick" optional>
                     <input
                       id="ob-cnick"
                       className="input"
                       value={child.nickname}
                       onChange={(e) => updateChild({ nickname: e.target.value })}
-                      placeholder="Used if you hide first names"
+                      placeholder={t('ob.kids.nicknameHint')}
                     />
                   </Field>
                   <Field label="Age" htmlFor="ob-cage">
@@ -924,7 +914,7 @@ export function Onboarding() {
                       placeholder="8"
                     />
                   </Field>
-                  <Field label="Pronouns" htmlFor="ob-cpro" optional>
+                  <Field label={t('ob.kids.pronouns')} htmlFor="ob-cpro" optional>
                     <input
                       id="ob-cpro"
                       className="input"
@@ -937,24 +927,24 @@ export function Onboarding() {
 
                 <div>
                   <div className="label" style={{ marginBottom: 'var(--sp-3)' }}>
-                    How do they play?
+                    {t('ob.kids.howPlay')}
                   </div>
                   <div className="stack stack-3">
                     <div className="row row-between row-4">
                       <div>
-                        <div className="small strong">Energy level</div>
-                        <div className="tiny muted">Quiet one-on-one play → boisterous group play</div>
+                        <div className="small strong">{t('ob.kids.energy')}</div>
+                        <div className="tiny muted">{t('ob.kids.energyHint')}</div>
                       </div>
                       <Stars
                         value={child.energy}
                         onChange={(v) => updateChild({ energy: v })}
-                        label="Energy level"
+                        label={t('ob.kids.energy')}
                       />
                     </div>
                     <div className="row row-between row-4">
                       <div>
-                        <div className="small strong">With new children</div>
-                        <div className="tiny muted">Needs warming up → jumps straight in</div>
+                        <div className="small strong">{t('ob.kids.social')}</div>
+                        <div className="tiny muted">{t('ob.kids.socialHint')}</div>
                       </div>
                       <Stars
                         value={child.sociability}
@@ -966,10 +956,10 @@ export function Onboarding() {
                 </div>
 
                 <Field
-                  label="Anything helpful for another parent to know"
+                  label={t('ob.kids.notes')}
                   htmlFor="ob-cnotes"
                   optional
-                  hint="Only shown to families you have connected with — never while someone is browsing."
+                  hint={t('ob.kids.notesHint')}
                 >
                   <textarea
                     id="ob-cnotes"
@@ -977,7 +967,7 @@ export function Onboarding() {
                     value={child.notes}
                     onChange={(e) => updateChild({ notes: e.target.value })}
                     maxLength={400}
-                    placeholder="Loves building things and will happily spend two hours on one LEGO set."
+                    placeholder={t('ob.kids.notesPlaceholder')}
                   />
                 </Field>
 
@@ -991,7 +981,7 @@ export function Onboarding() {
                     }}
                   >
                     <IconTrash size={14} />
-                    Remove this child
+                    {t('ob.kids.removeThis')}
                   </button>
                 )}
               </div>
@@ -1005,13 +995,13 @@ export function Onboarding() {
                 }}
               >
                 <IconPlus size={16} />
-                Add another child
+                {t('ob.kids.addAnother')}
               </button>
 
               <div className="row row-3">
                 <button className="btn btn-ghost" onClick={() => go(3)}>
                   <IconChevronLeft size={16} />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button className="btn btn-primary" onClick={() => go(5)} disabled={!childrenValid}>
                   Continue
@@ -1025,11 +1015,9 @@ export function Onboarding() {
           {step === 5 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>What do they like doing?</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('ob.int.h1')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  For each interest, tell us two things: how much your child enjoys it, and how
-                  much it should matter when we look for families. They are not the same
-                  question.
+                  {t('ob.int.p')}
                 </p>
               </div>
 
@@ -1041,22 +1029,22 @@ export function Onboarding() {
                       className={`pill${i === activeChild ? ' pill-strong' : ''}`}
                       onClick={() => setActiveChild(i)}
                     >
-                      {c.firstName || `Child ${i + 1}`}
+                      {c.firstName || t('common.childN', { n: i + 1 })}
                       <span className="tiny muted">{c.interests.length}</span>
                     </button>
                   ))}
                 </div>
               )}
 
-              <Alert tone="brand" title="Why the second rating matters">
-                An interest you mark “extremely important” counts for roughly twenty-five times
-                one you mark “not important”. It is not a tally of shared hobbies — one thing
-                you genuinely care about will not be outvoted by a pile of small ones.
+              <Alert tone="brand" title={t('ob.int.whyTitle')}>
+                {t('ob.int.whyBody')}
               </Alert>
 
               <div>
                 <div className="strong" style={{ marginBottom: 'var(--sp-3)' }}>
-                  {child.firstName || `Child ${activeChild + 1}`}'s interests
+                  {t('ob.int.childsInterests', {
+                    name: child.firstName || t('common.childN', { n: activeChild + 1 }),
+                  })}
                 </div>
                 <InterestEditor
                   value={child.interests}
@@ -1067,7 +1055,7 @@ export function Onboarding() {
               <div className="row row-3">
                 <button className="btn btn-ghost" onClick={() => go(4)}>
                   <IconChevronLeft size={16} />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button
                   className="btn btn-primary"
@@ -1078,7 +1066,7 @@ export function Onboarding() {
                   <IconArrowRight size={16} />
                 </button>
                 {children.every((c) => c.interests.length === 0) && (
-                  <span className="small muted">Add at least one interest.</span>
+                  <span className="small muted">{t('ob.int.addOne')}</span>
                 )}
               </div>
             </div>
@@ -1088,11 +1076,9 @@ export function Onboarding() {
           {step === 6 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>Where and how you would meet</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('ob.loc.h1')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  These are hard limits, not preferences. Families outside them are removed
-                  from your results rather than ranked last — you will not be shown families
-                  you could not realistically meet.
+                  {t('ob.loc.p')}
                 </p>
               </div>
 
@@ -1130,18 +1116,17 @@ export function Onboarding() {
 
               <div>
                 <div className="label" style={{ marginBottom: 'var(--sp-3)' }}>
-                  How do you like to meet?
+                  {t('ob.loc.howMeet')}
                 </div>
                 <StylePicker value={styles} onChange={setStyles} />
               </div>
 
               <div>
                 <div className="label" style={{ marginBottom: 'var(--sp-1)' }}>
-                  What should we weight most?
+                  {t('ob.loc.weightH')}
                 </div>
                 <p className="hint" style={{ marginBottom: 'var(--sp-4)' }}>
-                  Private to you. You can change these any time and your results update
-                  immediately.
+                  {t('ob.loc.weightHint')}
                 </p>
                 <WeightEditor
                   value={weights}
@@ -1152,7 +1137,7 @@ export function Onboarding() {
               <div className="row row-3">
                 <button className="btn btn-ghost" onClick={() => go(5)}>
                   <IconChevronLeft size={16} />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button className="btn btn-primary" onClick={() => go(7)}>
                   Continue
@@ -1166,10 +1151,9 @@ export function Onboarding() {
           {step === 7 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>When are you usually free?</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('ob.avail.h1')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  Rough blocks are enough. Families with no overlap with yours are filtered out
-                  of each other's results.
+                  {t('ob.avail.p')}
                 </p>
               </div>
 
@@ -1178,14 +1162,14 @@ export function Onboarding() {
               <div className="row row-3">
                 <button className="btn btn-ghost" onClick={() => go(6)}>
                   <IconChevronLeft size={16} />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button className="btn btn-primary" onClick={() => go(8)} disabled={availability.length === 0}>
                   Continue
                   <IconArrowRight size={16} />
                 </button>
                 {availability.length === 0 && (
-                  <span className="small muted">Choose at least one time.</span>
+                  <span className="small muted">{t('ob.avail.chooseOne')}</span>
                 )}
               </div>
             </div>
@@ -1195,10 +1179,9 @@ export function Onboarding() {
           {step === 8 && (
             <div className="stack stack-6">
               <div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>Choose what others can see</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('how.p4.title')}</h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  Every setting starts at the most protective option that still lets matching
-                  work. The preview beside each one shows exactly what another family would see.
+                  {t('ob.priv.p')}
                 </p>
               </div>
 
@@ -1207,7 +1190,7 @@ export function Onboarding() {
                   value={privacy}
                   onChange={(patch) => setPrivacy((p) => ({ ...p, ...patch }))}
                   preview={{
-                    generalArea: generalArea || 'Jerusalem area',
+                    generalArea: generalArea || t('landing.previewArea'),
                     neighborhood: neighborhood || undefined,
                     childFirstName: children[0]?.firstName || 'Noa',
                     childNickname: children[0]?.nickname || undefined,
@@ -1225,11 +1208,10 @@ export function Onboarding() {
                   />
                   <div>
                     <div className="strong small">
-                      Only accept requests from ID-verified parents
+                      {t('ob.priv.verifiedOnly')}
                     </div>
                     <div className="tiny muted">
-                      Strongly recommended. Parents who have not completed identity verification
-                      cannot send you a request at all.
+                      {t('ob.priv.verifiedOnlyDesc')}
                     </div>
                   </div>
                 </label>
@@ -1241,9 +1223,9 @@ export function Onboarding() {
                     onChange={(e) => setPrivacy((p) => ({ ...p, discoverable: e.target.checked }))}
                   />
                   <div>
-                    <div className="strong small">Appear in other families' results</div>
+                    <div className="strong small">{t('ob.priv.discoverable')}</div>
                     <div className="tiny muted">
-                      Turn this off at any time to pause discovery without deleting anything.
+                      {t('ob.priv.discoverableDesc')}
                     </div>
                   </div>
                 </label>
@@ -1252,7 +1234,7 @@ export function Onboarding() {
               <div className="row row-3">
                 <button className="btn btn-ghost" onClick={() => go(7)}>
                   <IconChevronLeft size={16} />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button className="btn btn-primary" onClick={() => go(9)}>
                   Continue
@@ -1268,28 +1250,27 @@ export function Onboarding() {
               <div>
                 <span className="eyebrow">
                   <IconShieldCheck size={13} />
-                  Before you start
+                  {t('ob.safe.eyebrow')}
                 </span>
                 <h1 style={{ fontSize: 'var(--text-2xl)', marginTop: 'var(--sp-2)' }}>
-                  How to use PlayDate safely
+                  {t('ob.safe.h1')}
                 </h1>
                 <p className="muted" style={{ marginTop: 'var(--sp-2)' }}>
-                  Six things worth two minutes of your time. None of this is unusual — it is
-                  how most parents already arrange a first playdate.
+                  {t('ob.safe.p')}
                 </p>
               </div>
 
               <div className="stack stack-3">
-                {SAFETY_TIPS.map((t) => (
-                  <div key={t.title} className="card card-pad">
+                {SAFETY_TIPS.map((tip) => (
+                  <div key={tip.titleKey} className="card card-pad">
                     <div className="row row-3" style={{ alignItems: 'flex-start' }}>
                       <span style={{ color: 'var(--ok-500)', marginTop: 2, flexShrink: 0 }}>
                         <IconCheck size={16} />
                       </span>
                       <div>
-                        <div className="strong">{t.title}</div>
+                        <div className="strong">{t(tip.titleKey)}</div>
                         <p className="muted small" style={{ marginTop: 2 }}>
-                          {t.body}
+                          {t(tip.bodyKey)}
                         </p>
                       </div>
                     </div>
@@ -1304,10 +1285,9 @@ export function Onboarding() {
                   onChange={(e) => setAcceptedSafety(e.target.checked)}
                 />
                 <div>
-                  <div className="strong small">I have read these and I understand them</div>
+                  <div className="strong small">{t('ob.safe.accept')}</div>
                   <div className="tiny muted">
-                    We record that you saw this page, with a timestamp. You can reread it any
-                    time from the Safety Centre.
+                    {t('ob.safe.acceptDesc')}
                   </div>
                 </div>
               </label>
@@ -1315,7 +1295,7 @@ export function Onboarding() {
               <div className="row row-3">
                 <button className="btn btn-ghost" onClick={() => go(8)}>
                   <IconChevronLeft size={16} />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button className="btn btn-primary" onClick={() => go(10)} disabled={!acceptedSafety}>
                   Continue
@@ -1342,27 +1322,26 @@ export function Onboarding() {
                 >
                   <IconCheck size={30} />
                 </div>
-                <h1 style={{ fontSize: 'var(--text-2xl)' }}>Your family profile is ready</h1>
+                <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('ob.done.h1')}</h1>
                 <p className="muted" style={{ maxWidth: '46ch' }}>
-                  Here is what other families will see when you appear in their results.
-                  Everything on this card is something you chose.
+                  {t('ob.done.p')}
                 </p>
               </div>
 
               <div className="card card-pad stack stack-4">
                 <div className="row row-4">
                   <Avatar
-                    name={familyName || 'Family'}
+                    name={familyName || t('admin.colFamily')}
                     color="var(--brand-600)"
                     size="lg"
                     square
                   />
                   <div>
                     <div className="strong" style={{ fontSize: 'var(--text-md)' }}>
-                      The {familyName || 'Your'} Family
+                      The {familyName || t('ob.done.yourFamily')} Family
                     </div>
                     <div className="small muted">
-                      {privacy.location === 'hidden' ? 'Location not shared' : generalArea} ·{' '}
+                      {privacy.location === 'hidden' ? t('ed.locNotShared') : generalArea} ·{' '}
                       {children.filter((c) => c.firstName).length}{' '}
                       {children.filter((c) => c.firstName).length === 1 ? 'child' : 'children'}
                     </div>
@@ -1380,16 +1359,19 @@ export function Onboarding() {
                         <div>
                           <div className="small strong">
                             {privacy.childName === 'hidden'
-                              ? `Child ${i + 1}`
+                              ? t('common.childN', { n: i + 1 })
                               : privacy.childName === 'nickname'
-                                ? c.nickname || `Child ${i + 1}`
+                                ? c.nickname || t('common.childN', { n: i + 1 })
                                 : c.firstName}
                           </div>
                           <div className="tiny muted">
                             {privacy.childAges === 'exact'
-                              ? `${c.age} years old`
-                              : `${Math.max(1, Number(c.age) - 1)}–${Number(c.age) + 1} years old`}{' '}
-                            · {c.interests.length} interests
+                              ? t('common.yearsOld', { n: Number(c.age) })
+                              : t('common.ageRange', {
+                                  from: Math.max(1, Number(c.age) - 1),
+                                  to: Number(c.age) + 1,
+                                })}{' '}
+                            · {t('ob.done.nInterests', { n: c.interests.length })}
                           </div>
                         </div>
                       </div>
@@ -1397,24 +1379,23 @@ export function Onboarding() {
                 </div>
 
                 <div className="panel small muted">
-                  Not shown: your address, phone number, email, legal name, date of birth, or
-                  precise location. Those never leave your private record.
+                  {t('ob.done.notShown')}
                 </div>
               </div>
 
               <div className="card card-pad">
                 <div className="strong small" style={{ marginBottom: 'var(--sp-3) ' }}>
-                  Your matching priorities
+                  {t('ob.done.priorities')}
                 </div>
                 <div className="stack stack-2">
                   {(['interests', 'age', 'distance', 'availability', 'style'] as const).map((k) => (
                     <div key={k} className="row row-between">
                       <span className="small" style={{ textTransform: 'capitalize' }}>
-                        {k === 'style' ? 'Playdate style' : k}
+                        {k === 'style' ? t('compat.factorStyle') : k}
                       </span>
                       <span className="row row-3">
                         <Stars value={weights[k]} size="readonly" label={k} />
-                        <span className="tiny muted">{IMPORTANCE_LABELS[weights[k]]}</span>
+                        <span className="tiny muted">{importanceLabels(t)[weights[k]]}</span>
                       </span>
                     </div>
                   ))}
@@ -1422,13 +1403,13 @@ export function Onboarding() {
               </div>
 
               <button className="btn btn-primary btn-lg" onClick={finish} disabled={busy}>
-                {busy ? 'Setting up…' : 'Enter discovery'}
+                {busy ? t('ob.done.settingUp') : t('ob.done.enter')}
                 <IconArrowRight size={17} />
               </button>
 
               <button className="btn btn-ghost" onClick={() => go(9)}>
                 <IconChevronLeft size={16} />
-                Back
+                {t('common.back')}
               </button>
             </div>
           )}

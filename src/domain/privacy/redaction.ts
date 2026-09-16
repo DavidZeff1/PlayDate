@@ -1,15 +1,18 @@
 import {
   DisclosureTier,
+  type AgeDisclosureView,
   type AvailabilitySlot,
+  type AvailabilityView,
   type Child,
   type ChildProjection,
   type DayOfWeek,
   type Family,
   type FamilyProjection,
+  type LocationView,
   type ParentProfile,
   type TimeBlock,
 } from '../types';
-import { distanceBand } from '../matching/scorers';
+import { distanceBandKey } from '../matching/scorers';
 
 /**
  * THE CHOKE POINT.
@@ -32,119 +35,124 @@ import { distanceBand } from '../matching/scorers';
 
 const DAY_ORDER: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
-const DAY_SHORT: Record<DayOfWeek, string> = {
-  sun: 'Sun',
-  mon: 'Mon',
-  tue: 'Tue',
-  wed: 'Wed',
-  thu: 'Thu',
-  fri: 'Fri',
-  sat: 'Sat',
-};
-
-const BLOCK_LABEL: Record<TimeBlock, string> = {
-  morning: 'mornings',
-  afternoon: 'afternoons',
-  evening: 'evenings',
-};
+const BLOCK_ORDER: TimeBlock[] = ['morning', 'afternoon', 'evening'];
 
 const WEEKEND: DayOfWeek[] = ['fri', 'sat'];
 
 /**
- * A coarse, human phrase — "Weekend afternoons", "Weekday afternoons and evenings".
- * Used at DISCOVERY tier so a stranger cannot learn a family's weekly routine, which is
- * exactly the information you would want to know in order to find a child predictably.
+ * A coarse availability summary — "weekend afternoons", "weekday afternoons and
+ * evenings" — as structured data rather than a phrase.
+ *
+ * Coarse on purpose: at DISCOVERY tier a stranger must not be able to learn a family's
+ * weekly routine, which is precisely what you would want in order to find a child
+ * predictably. Structured on purpose: word order differs between languages, so the
+ * sentence is assembled in the UI.
  */
-export function summariseAvailability(slots: AvailabilitySlot[]): string {
-  if (slots.length === 0) return 'No availability set';
+export function summariseAvailability(slots: AvailabilitySlot[]): AvailabilityView {
+  if (slots.length === 0) return { scope: 'none', blocks: [] };
 
   const days = new Set(slots.map((s) => s.day));
-  const blocks = new Set(slots.map((s) => s.block));
+  const blocks = [...new Set(slots.map((s) => s.block))].sort(
+    (a, b) => BLOCK_ORDER.indexOf(a) - BLOCK_ORDER.indexOf(b),
+  );
 
   const allWeekend = [...days].every((d) => WEEKEND.includes(d));
   const allWeekday = [...days].every((d) => !WEEKEND.includes(d));
 
-  const blockPhrase = [...blocks]
-    .sort((a, b) => ['morning', 'afternoon', 'evening'].indexOf(a) - ['morning', 'afternoon', 'evening'].indexOf(b))
-    .map((b) => BLOCK_LABEL[b])
-    .join(' and ');
-
-  if (allWeekend) return `Weekend ${blockPhrase}`;
-  if (allWeekday) return `Weekday ${blockPhrase}`;
-  return `Most days, ${blockPhrase}`;
+  return {
+    scope: allWeekend ? 'weekend' : allWeekday ? 'weekday' : 'mixed',
+    blocks,
+  };
 }
 
-/** Detailed grid label, only ever shown at CONNECTED tier or above. */
-export function describeAvailability(slots: AvailabilitySlot[]): string[] {
+/** Detailed grid, only ever shown at CONNECTED tier or above. Formatted by the UI. */
+export function describeAvailability(
+  slots: AvailabilitySlot[],
+): Array<{ day: DayOfWeek; blocks: TimeBlock[] }> {
   const byDay = new Map<DayOfWeek, TimeBlock[]>();
   for (const s of slots) {
     const list = byDay.get(s.day) ?? [];
     list.push(s.block);
     byDay.set(s.day, list);
   }
-  return DAY_ORDER.filter((d) => byDay.has(d)).map(
-    (d) => `${DAY_SHORT[d]}: ${(byDay.get(d) ?? []).map((b) => BLOCK_LABEL[b]).join(', ')}`,
-  );
+  return DAY_ORDER.filter((d) => byDay.has(d)).map((d) => ({
+    day: d,
+    blocks: byDay.get(d) ?? [],
+  }));
 }
 
 /**
- * Location label. Never an address, never coordinates.
+ * Location, as data. Never an address, never coordinates.
  *
- * `approximate_distance` deliberately returns a band ("About 2–4 km away") rather than a
- * figure. An exact distance from a known point is a circle; three exact distances are a
+ * `approximate_distance` deliberately yields a band key ("2–4 km") rather than a figure.
+ * An exact distance from a known point is a circle; three exact distances are a
  * position. Bands make that trilateration attack impractical.
  */
-export function locationLabel(
+export function locationView(
   family: Family,
   tier: DisclosureTier,
   distanceKm?: number,
-): string {
+): LocationView {
   if (tier === DisclosureTier.SELF) {
-    return family.neighborhood ? `${family.neighborhood}, ${family.generalArea}` : family.generalArea;
+    return family.neighborhood
+      ? { kind: 'neighborhood', area: family.generalArea, neighborhood: family.neighborhood }
+      : { kind: 'area', area: family.generalArea };
   }
 
   switch (family.privacy.location) {
     case 'hidden':
-      return 'Location not shared';
+      return { kind: 'hidden' };
     case 'general_area':
-      return family.generalArea;
+      return { kind: 'area', area: family.generalArea };
     case 'neighborhood':
       // Neighbourhood is finer-grained, so it is held back until families connect.
       return tier >= DisclosureTier.CONNECTED && family.neighborhood
-        ? `${family.neighborhood}, ${family.generalArea}`
-        : family.generalArea;
+        ? { kind: 'neighborhood', area: family.generalArea, neighborhood: family.neighborhood }
+        : { kind: 'area', area: family.generalArea };
     case 'approximate_distance':
       return distanceKm === undefined
-        ? family.generalArea
-        : `About ${distanceBand(distanceKm)} away`;
+        ? { kind: 'area', area: family.generalArea }
+        : { kind: 'distance', bandKey: distanceBandKey(distanceKm) };
     default:
-      return family.generalArea;
+      return { kind: 'area', area: family.generalArea };
   }
 }
 
-/** Child display name, honouring the parent's choice. Never a surname, ever. */
-export function childDisplayName(child: Child, family: Family, index: number, tier: DisclosureTier): string {
-  if (tier === DisclosureTier.SELF) return child.nickname ? `${child.firstName} (${child.nickname})` : child.firstName;
+/**
+ * Child display name, honouring the parent's choice. Never a surname, ever.
+ *
+ * Returns a placeholder marker rather than the string "Child 1" when the name is
+ * hidden, so the UI can render it in the reader's language.
+ */
+export function childDisplayName(
+  child: Child,
+  family: Family,
+  index: number,
+  tier: DisclosureTier,
+): string | { placeholderIndex: number } {
+  const placeholder = { placeholderIndex: index + 1 };
+  if (tier === DisclosureTier.SELF) {
+    return child.nickname ? `${child.firstName} (${child.nickname})` : child.firstName;
+  }
 
   switch (family.privacy.childName) {
     case 'hidden':
-      return `Child ${index + 1}`;
+      return placeholder;
     case 'nickname':
-      return child.nickname || `Child ${index + 1}`;
+      return child.nickname || placeholder;
     case 'first_name':
       return child.firstName;
     default:
-      return `Child ${index + 1}`;
+      return placeholder;
   }
 }
 
-/** Age label: exact, or a ±1 band when the parent chose range disclosure. */
-export function childAgeLabel(child: Child, family: Family, tier: DisclosureTier): string {
+/** Age view: exact, or a ±1 band when the parent chose range disclosure. */
+export function childAgeView(child: Child, family: Family, tier: DisclosureTier): AgeDisclosureView {
   if (tier === DisclosureTier.SELF || family.privacy.childAges === 'exact') {
-    return `${child.age} years old`;
+    return { kind: 'exact', age: child.age };
   }
-  const low = Math.max(1, child.age - 1);
-  return `${low}–${child.age + 1} years old`;
+  return { kind: 'range', from: Math.max(1, child.age - 1), to: child.age + 1 };
 }
 
 function projectChild(
@@ -167,7 +175,7 @@ function projectChild(
   return {
     id: child.id,
     displayName: childDisplayName(child, family, index, tier),
-    ageLabel: childAgeLabel(child, family, tier),
+    ageView: childAgeView(child, family, tier),
     age: child.age,
     // Interests are the point of the product, so they are shown at discovery tier —
     // but only the interest id and enthusiasm, never a free-text note.
@@ -220,7 +228,7 @@ export function projectFamily(
   return {
     id: family.id,
     displayName: family.displayName,
-    locationLabel: locationLabel(family, tier, distanceKm),
+    location: locationView(family, tier, distanceKm),
     tier,
     children: family.children.map((c, i) => projectChild(c, family, i, tier, photoConsentGranted)),
     childCount: family.children.length,
@@ -234,7 +242,7 @@ export function projectFamily(
     availabilitySummary: summariseAvailability(family.availability),
     availability: showDetailedAvailability ? family.availability : undefined,
     styles: family.preferences.styles,
-    distanceBand: distanceKm === undefined ? undefined : distanceBand(distanceKm),
+    distanceBandKey: distanceKm === undefined ? undefined : distanceBandKey(distanceKm),
     memberSince: family.createdAt,
   };
 }

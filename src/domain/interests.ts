@@ -1,4 +1,5 @@
 import type { InterestDefinition, InterestCategory } from './types';
+import type { TFunc, TKey } from '../i18n/types';
 
 /**
  * Controlled interest vocabulary.
@@ -62,62 +63,78 @@ export function getInterest(id: string): InterestDefinition | undefined {
   return BY_ID.get(id);
 }
 
-export function interestLabel(id: string): string {
-  return BY_ID.get(id)?.label ?? id;
+/**
+ * The translation key for an interest, not its English label.
+ *
+ * The `label` on each catalog entry is the English fallback and a readable anchor for
+ * developers; what the UI renders is `t(interestKey(id))`. Keeping the key derivation
+ * here means adding an interest is one catalog row plus two dictionary entries, and the
+ * typecheck catches a missing translation.
+ */
+export function interestKey(id: string): TKey {
+  return `interest.${id}` as TKey;
+}
+
+export function interestLabel(id: string, t: TFunc): string {
+  return BY_ID.has(id) ? t(interestKey(id)) : id;
 }
 
 export function interestEmoji(id: string): string {
   return BY_ID.get(id)?.emoji ?? '•';
 }
 
-export const CATEGORY_LABELS: Record<InterestCategory, string> = {
-  creative: 'Creative',
-  active: 'Active & sport',
-  games: 'Games',
-  outdoors: 'Outdoors',
-  learning: 'Learning & curiosity',
-  social: 'Play style',
-};
+export function categoryKey(c: InterestCategory): TKey {
+  return `cat.${c}` as TKey;
+}
 
 export function interestsByCategory(): Array<{
   category: InterestCategory;
-  label: string;
+  labelKey: TKey;
   interests: InterestDefinition[];
 }> {
   const order: InterestCategory[] = ['creative', 'active', 'games', 'outdoors', 'learning', 'social'];
   return order.map((category) => ({
     category,
-    label: CATEGORY_LABELS[category],
+    labelKey: categoryKey(category),
     interests: INTEREST_CATALOG.filter((i) => i.category === category),
   }));
 }
 
-export const IMPORTANCE_LABELS: Record<number, string> = {
-  1: 'Not important',
-  2: 'Slight preference',
-  3: 'Important',
-  4: 'Very important',
-  5: 'Extremely important',
-};
+export function importanceKey(n: number): TKey {
+  return `importance.${n}` as TKey;
+}
 
-export const ENTHUSIASM_LABELS: Record<number, string> = {
-  1: 'Will join in',
-  2: 'Quite likes it',
-  3: 'Really enjoys it',
-  4: 'Loves it',
-  5: "It's their favourite thing",
-};
+export function enthusiasmKey(n: number): TKey {
+  return `enthusiasm.${n}` as TKey;
+}
+
+export function importanceLabel(n: number, t: TFunc): string {
+  return t(importanceKey(n));
+}
+
+export function enthusiasmLabel(n: number, t: TFunc): string {
+  return t(enthusiasmKey(n));
+}
+
+/** Star-control labels, keyed 1–5, for the active locale. */
+export function importanceLabels(t: TFunc): Record<number, string> {
+  return { 1: t('importance.1'), 2: t('importance.2'), 3: t('importance.3'), 4: t('importance.4'), 5: t('importance.5') };
+}
+
+export function enthusiasmLabels(t: TFunc): Record<number, string> {
+  return { 1: t('enthusiasm.1'), 2: t('enthusiasm.2'), 3: t('enthusiasm.3'), 4: t('enthusiasm.4'), 5: t('enthusiasm.5') };
+}
 
 /** Activity options offered when planning a playdate. */
-export const PLAYDATE_ACTIVITIES = [
-  { id: 'playground', label: 'Playground', emoji: '🛝' },
-  { id: 'park', label: 'Park meet-up', emoji: '🌳' },
-  { id: 'lego', label: 'LEGO & building', emoji: '🧱' },
-  { id: 'board_games', label: 'Board games', emoji: '🎲' },
-  { id: 'swimming', label: 'Swimming', emoji: '🏊' },
-  { id: 'sports', label: 'Sports & ball games', emoji: '⚽' },
-  { id: 'crafts', label: 'Arts & crafts', emoji: '🎨' },
-  { id: 'baking', label: 'Baking together', emoji: '🧁' },
-  { id: 'museum', label: 'Museum or exhibition', emoji: '🏛️' },
-  { id: 'other', label: 'Something else', emoji: '✨' },
-] as const;
+export const PLAYDATE_ACTIVITIES: Array<{ id: string; labelKey: TKey; emoji: string }> = [
+  { id: 'playground', labelKey: 'activity.playground', emoji: '🛝' },
+  { id: 'park', labelKey: 'activity.park', emoji: '🌳' },
+  { id: 'lego', labelKey: 'activity.lego', emoji: '🧱' },
+  { id: 'board_games', labelKey: 'activity.board_games', emoji: '🎲' },
+  { id: 'swimming', labelKey: 'activity.swimming', emoji: '🏊' },
+  { id: 'sports', labelKey: 'activity.sports', emoji: '⚽' },
+  { id: 'crafts', labelKey: 'activity.crafts', emoji: '🎨' },
+  { id: 'baking', labelKey: 'activity.baking', emoji: '🧁' },
+  { id: 'museum', labelKey: 'activity.museum', emoji: '🏛️' },
+  { id: 'other', labelKey: 'activity.other', emoji: '✨' },
+];

@@ -9,15 +9,15 @@ import type {
   TimeBlock,
 } from '../../domain/types';
 import {
-  ENTHUSIASM_LABELS,
-  IMPORTANCE_LABELS,
+  enthusiasmLabels,
+  importanceLabels,
   interestsByCategory,
   interestEmoji,
   interestLabel,
 } from '../../domain/interests';
+import { useT } from '../../i18n';
 import { Segmented, Stars } from '../ui';
 import { IconCheck, IconPlus, IconSearch, IconX } from '../ui/Icons';
-import { STYLE_LABELS } from './FamilyBits';
 
 /* ========================================================================== */
 /* Interest editor                                                             */
@@ -43,8 +43,11 @@ export function InterestEditor({
   value: ChildInterest[];
   onChange: (next: ChildInterest[]) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
+  const impLabels = importanceLabels(t);
+  const enthLabels = enthusiasmLabels(t);
 
   const selectedIds = useMemo(() => new Set(value.map((v) => v.interestId)), [value]);
 
@@ -54,11 +57,14 @@ export function InterestEditor({
       .map((group) => ({
         ...group,
         interests: group.interests.filter(
-          (i) => !selectedIds.has(i.id) && (!q || i.label.toLowerCase().includes(q)),
+          (i) =>
+            !selectedIds.has(i.id) &&
+            // Search the translated label so a Hebrew reader can search in Hebrew.
+            (!q || interestLabel(i.id, t).toLowerCase().includes(q)),
         ),
       }))
       .filter((g) => g.interests.length > 0);
-  }, [query, selectedIds]);
+  }, [query, selectedIds, t]);
 
   const add = (interestId: string) => {
     onChange([...value, { interestId, enthusiasm: 4, importance: 3 }]);
@@ -84,12 +90,12 @@ export function InterestEditor({
                   <span style={{ fontSize: '1.15rem' }} aria-hidden="true">
                     {interestEmoji(item.interestId)}
                   </span>
-                  <span className="strong">{interestLabel(item.interestId)}</span>
+                  <span className="strong">{interestLabel(item.interestId, t)}</span>
                 </div>
                 <button
                   className="btn-icon"
                   onClick={() => remove(item.interestId)}
-                  aria-label={`Remove ${interestLabel(item.interestId)}`}
+                  aria-label={`Remove ${interestLabel(item.interestId, t)}`}
                 >
                   <IconX size={15} />
                 </button>
@@ -104,37 +110,37 @@ export function InterestEditor({
               >
                 <div>
                   <div className="small strong" style={{ marginBottom: 4 }}>
-                    How much do they enjoy it?
+                    {t('ed.enjoyQ')}
                   </div>
                   <div className="row row-3">
                     <Stars
                       value={item.enthusiasm}
                       onChange={(v) => update(item.interestId, { enthusiasm: v })}
-                      label={`${interestLabel(item.interestId)} — enjoyment`}
-                      labels={ENTHUSIASM_LABELS}
+                      label={`${interestLabel(item.interestId, t)} — enjoyment`}
+                      labels={enthLabels}
                     />
-                    <span className="tiny muted">{ENTHUSIASM_LABELS[item.enthusiasm]}</span>
+                    <span className="tiny muted">{enthLabels[item.enthusiasm]}</span>
                   </div>
                   <div className="tiny muted" style={{ marginTop: 4 }}>
-                    Other families see this.
+                    {t('ed.enjoyNote')}
                   </div>
                 </div>
 
                 <div>
                   <div className="small strong" style={{ marginBottom: 4 }}>
-                    How important is it for matching?
+                    {t('ed.importanceQ')}
                   </div>
                   <div className="row row-3">
                     <Stars
                       value={item.importance}
                       onChange={(v) => update(item.interestId, { importance: v })}
-                      label={`${interestLabel(item.interestId)} — matching importance`}
-                      labels={IMPORTANCE_LABELS}
+                      label={`${interestLabel(item.interestId, t)} — matching importance`}
+                      labels={impLabels}
                     />
-                    <span className="tiny muted">{IMPORTANCE_LABELS[item.importance]}</span>
+                    <span className="tiny muted">{impLabels[item.importance]}</span>
                   </div>
                   <div className="tiny muted" style={{ marginTop: 4 }}>
-                    Private to you. Shapes your results only.
+                    {t('ed.importanceNote')}
                   </div>
                 </div>
               </div>
@@ -146,12 +152,12 @@ export function InterestEditor({
       {!adding ? (
         <button className="btn btn-secondary" onClick={() => setAdding(true)}>
           <IconPlus size={16} />
-          Add an interest
+          {t('ed.addInterest')}
         </button>
       ) : (
         <div className="card card-pad stack stack-4">
           <div className="row row-between">
-            <span className="strong small">Choose an interest</span>
+            <span className="strong small">{t('ed.chooseInterest')}</span>
             <button className="btn-icon" onClick={() => setAdding(false)} aria-label="Close">
               <IconX size={15} />
             </button>
@@ -172,10 +178,10 @@ export function InterestEditor({
             <input
               className="input"
               style={{ paddingLeft: '2.1rem' }}
-              placeholder="Search interests…"
+              placeholder={t('ed.searchInterests')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search interests"
+              aria-label={t('ed.searchInterests')}
             />
           </div>
 
@@ -183,13 +189,13 @@ export function InterestEditor({
             {catalog.map((group) => (
               <div key={group.category}>
                 <div className="tiny muted strong" style={{ marginBottom: 'var(--sp-2)' }}>
-                  {group.label}
+                  {t(group.labelKey)}
                 </div>
                 <div className="row row-wrap" style={{ gap: 'var(--sp-2)' }}>
                   {group.interests.map((i) => (
                     <button key={i.id} className="interest-tag" onClick={() => add(i.id)}>
                       <span aria-hidden="true">{i.emoji}</span>
-                      {i.label}
+                      {interestLabel(i.id, t)}
                       <IconPlus size={11} />
                     </button>
                   ))}
@@ -198,16 +204,12 @@ export function InterestEditor({
             ))}
             {catalog.length === 0 && (
               <p className="small muted">
-                {query ? 'Nothing matches that search.' : 'Every interest has been added.'}
+                {query ? t('ed.noSearchMatch') : t('ed.allAdded')}
               </p>
             )}
           </div>
 
-          <p className="tiny muted">
-            Interests come from a fixed list rather than free text. That keeps matching to
-            playdate-relevant preferences, and stops the interest field becoming a way to sort
-            families by anything sensitive.
-          </p>
+          <p className="tiny muted">{t('ed.fixedList')}</p>
         </div>
       )}
     </div>
@@ -218,21 +220,8 @@ export function InterestEditor({
 /* Availability grid                                                           */
 /* ========================================================================== */
 
-const DAYS: Array<{ id: DayOfWeek; label: string }> = [
-  { id: 'sun', label: 'Sunday' },
-  { id: 'mon', label: 'Monday' },
-  { id: 'tue', label: 'Tuesday' },
-  { id: 'wed', label: 'Wednesday' },
-  { id: 'thu', label: 'Thursday' },
-  { id: 'fri', label: 'Friday' },
-  { id: 'sat', label: 'Saturday' },
-];
-
-const BLOCKS: Array<{ id: TimeBlock; label: string }> = [
-  { id: 'morning', label: 'Morning' },
-  { id: 'afternoon', label: 'Afternoon' },
-  { id: 'evening', label: 'Evening' },
-];
+const DAYS: DayOfWeek[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const BLOCKS: TimeBlock[] = ['morning', 'afternoon', 'evening'];
 
 export function AvailabilityGrid({
   value,
@@ -241,6 +230,7 @@ export function AvailabilityGrid({
   value: AvailabilitySlot[];
   onChange: (next: AvailabilitySlot[]) => void;
 }) {
+  const t = useT();
   const set = useMemo(() => new Set(value.map((s) => `${s.day}:${s.block}`)), [value]);
 
   const toggle = (day: DayOfWeek, block: TimeBlock) => {
@@ -258,26 +248,24 @@ export function AvailabilityGrid({
         <div className="availability-grid">
           <div />
           {BLOCKS.map((b) => (
-            <div key={b.id} className="tiny muted center strong">
-              {b.label}
+            <div key={b} className="tiny muted center strong">
+              {t(`block.${b}`)}
             </div>
           ))}
 
           {DAYS.map((d) => (
-            <Fragment key={d.id}>
-              <div className="availability-label">
-                {d.label}
-              </div>
+            <Fragment key={d}>
+              <div className="availability-label">{t(`day.${d}`)}</div>
               {BLOCKS.map((b) => {
-                const on = set.has(`${d.id}:${b.id}`);
+                const on = set.has(`${d}:${b}`);
                 return (
                   <button
-                    key={`${d.id}-${b.id}`}
+                    key={`${d}-${b}`}
                     type="button"
                     className="availability-cell"
                     aria-pressed={on}
-                    aria-label={`${d.label} ${b.label}`}
-                    onClick={() => toggle(d.id, b.id)}
+                    aria-label={`${t(`day.${d}`)} ${t(`block.${b}`)}`}
+                    onClick={() => toggle(d, b)}
                   >
                     {on ? <IconCheck size={14} style={{ margin: '0 auto' }} /> : '—'}
                   </button>
@@ -289,9 +277,7 @@ export function AvailabilityGrid({
       </div>
 
       <p className="tiny muted">
-        Other families see only a summary like “Weekend afternoons” unless you connect and
-        choose to share detail. Families with no overlap with yours are filtered out of each
-        other's results entirely.
+        {t('ed.availNote')}
       </p>
     </div>
   );
@@ -301,13 +287,13 @@ export function AvailabilityGrid({
 /* Playdate style picker                                                       */
 /* ========================================================================== */
 
-const STYLE_OPTIONS: Array<{ id: PlaydateStyle; description: string }> = [
-  { id: 'parents_stay', description: 'A parent stays for the whole visit.' },
-  { id: 'public_places_only', description: 'Parks, playgrounds and other public places.' },
-  { id: 'home_visits_ok', description: 'Happy to visit homes once we know each other.' },
-  { id: 'drop_off_ok', description: 'Open to drop-off playdates with familiar families.' },
-  { id: 'small_groups', description: 'One or two children rather than a crowd.' },
-  { id: 'structured_activities', description: 'A planned activity rather than free play.' },
+const STYLE_OPTIONS: PlaydateStyle[] = [
+  'parents_stay',
+  'public_places_only',
+  'home_visits_ok',
+  'drop_off_ok',
+  'small_groups',
+  'structured_activities',
 ];
 
 export function StylePicker({
@@ -317,17 +303,18 @@ export function StylePicker({
   value: PlaydateStyle[];
   onChange: (next: PlaydateStyle[]) => void;
 }) {
+  const t = useT();
   const toggle = (s: PlaydateStyle) =>
     onChange(value.includes(s) ? value.filter((v) => v !== s) : [...value, s]);
 
   return (
     <div className="stack stack-2">
-      {STYLE_OPTIONS.map((o) => (
-        <label key={o.id} className="checkbox" data-checked={value.includes(o.id)}>
-          <input type="checkbox" checked={value.includes(o.id)} onChange={() => toggle(o.id)} />
+      {STYLE_OPTIONS.map((id) => (
+        <label key={id} className="checkbox" data-checked={value.includes(id)}>
+          <input type="checkbox" checked={value.includes(id)} onChange={() => toggle(id)} />
           <div>
-            <div className="strong small">{STYLE_LABELS[o.id]}</div>
-            <div className="tiny muted">{o.description}</div>
+            <div className="strong small">{t(`style.${id}`)}</div>
+            <div className="tiny muted">{t(`styleDesc.${id}`)}</div>
           </div>
         </label>
       ))}
@@ -359,145 +346,153 @@ export function PrivacyControls({
     childAge: number;
   };
 }) {
+  const t = useT();
+
   const locationPreview =
     value.location === 'hidden'
-      ? 'Location not shared'
+      ? t('ed.locNotShared')
       : value.location === 'general_area'
         ? preview.generalArea
         : value.location === 'neighborhood'
-          ? `${preview.generalArea} → ${preview.neighborhood ?? preview.generalArea} once connected`
-          : 'About 2–4 km away';
+          ? t('ed.locOnceConnected', {
+              area: preview.generalArea,
+              hood: preview.neighborhood ?? preview.generalArea,
+            })
+          : t('ed.locAbout');
 
   const namePreview =
     value.childName === 'hidden'
-      ? 'Child 1'
+      ? t('common.childN', { n: 1 })
       : value.childName === 'nickname'
-        ? preview.childNickname || 'Child 1 (no nickname set)'
+        ? preview.childNickname || t('ed.noNickname')
         : preview.childFirstName;
 
   const agePreview =
     value.childAges === 'exact'
-      ? `${preview.childAge} years old`
-      : `${Math.max(1, preview.childAge - 1)}–${preview.childAge + 1} years old`;
+      ? t('common.yearsOld', { n: preview.childAge })
+      : t('common.ageRange', {
+          from: Math.max(1, preview.childAge - 1),
+          to: preview.childAge + 1,
+        });
 
   const photoPreview =
     value.childPhotos === 'hidden'
-      ? 'No photo shown to anyone'
+      ? t('ed.photoNone')
       : value.childPhotos === 'connected_families'
-        ? 'Visible after you connect'
-        : 'Visible only to families you individually approve';
+        ? t('ed.photoConnected')
+        : t('ed.photoApproved');
 
   return (
     <div>
       <PrivacyRow
-        label="Location"
-        description="What other families see about where you are. Your address is never shown at any setting."
+        label={t('ed.privLocation')}
+        description={t('ed.privLocationDesc')}
         preview={locationPreview}
         control={
           <Segmented
-            label="Location disclosure"
+            label={t('ed.privLocDisclosure')}
             value={value.location}
             onChange={(v) => onChange({ location: v })}
             options={[
-              { value: 'hidden', label: 'Hidden' },
-              { value: 'general_area', label: 'General area' },
-              { value: 'neighborhood', label: 'Neighbourhood' },
-              { value: 'approximate_distance', label: 'Distance' },
+              { value: 'hidden', label: t('ed.optHidden') },
+              { value: 'general_area', label: t('ed.optGeneralArea') },
+              { value: 'neighborhood', label: t('ed.optNeighbourhood') },
+              { value: 'approximate_distance', label: t('ed.optDistance') },
             ]}
           />
         }
       />
 
       <PrivacyRow
-        label="Children's names"
-        description="A surname is never shown for a child, whichever option you choose."
+        label={t('ed.privNames')}
+        description={t('ed.privNamesDesc')}
         preview={namePreview}
         control={
           <Segmented
-            label="Child name disclosure"
+            label={t('ed.privNameDisclosure')}
             value={value.childName}
             onChange={(v) => onChange({ childName: v })}
             options={[
-              { value: 'hidden', label: 'Hidden' },
-              { value: 'first_name', label: 'First name' },
-              { value: 'nickname', label: 'Nickname' },
+              { value: 'hidden', label: t('ed.optHidden') },
+              { value: 'first_name', label: t('ed.optFirstName') },
+              { value: 'nickname', label: t('ed.optNickname') },
             ]}
           />
         }
       />
 
       <PrivacyRow
-        label="Children's ages"
-        description="A band is enough for matching and gives away slightly less."
+        label={t('ed.privAges')}
+        description={t('ed.privAgesDesc')}
         preview={agePreview}
         control={
           <Segmented
-            label="Age disclosure"
+            label={t('ed.privAgeDisclosure')}
             value={value.childAges}
             onChange={(v) => onChange({ childAges: v })}
             options={[
-              { value: 'exact', label: 'Exact age' },
-              { value: 'range', label: 'Age range' },
+              { value: 'exact', label: t('ed.optExactAge') },
+              { value: 'range', label: t('ed.optAgeRange') },
             ]}
           />
         }
       />
 
       <PrivacyRow
-        label="Photos of children"
-        description="Off by default. Photos are never visible to someone simply browsing."
+        label={t('ed.privPhotos')}
+        description={t('ed.privPhotosDesc')}
         preview={photoPreview}
         control={
           <Segmented
-            label="Photo disclosure"
+            label={t('ed.privPhotoDisclosure')}
             value={value.childPhotos}
             onChange={(v) => onChange({ childPhotos: v })}
             options={[
-              { value: 'hidden', label: 'Hidden' },
-              { value: 'connected_families', label: 'Connected' },
-              { value: 'on_request', label: 'Per family' },
+              { value: 'hidden', label: t('ed.optHidden') },
+              { value: 'connected_families', label: t('ed.optConnected') },
+              { value: 'on_request', label: t('ed.optPerFamily') },
             ]}
           />
         }
       />
 
       <PrivacyRow
-        label="Availability detail"
-        description="A summary keeps your weekly routine private from people you have not met."
+        label={t('ed.privAvail')}
+        description={t('ed.privAvailDesc')}
         preview={
           value.availabilityDetail === 'summary'
-            ? '“Weekend afternoons”'
-            : 'Exact days and times, once connected'
+            ? t('ed.availSummaryPreview')
+            : t('ed.availDetailPreview')
         }
         control={
           <Segmented
-            label="Availability detail"
+            label={t('ed.privAvail')}
             value={value.availabilityDetail}
             onChange={(v) => onChange({ availabilityDetail: v })}
             options={[
-              { value: 'summary', label: 'Summary' },
-              { value: 'detailed', label: 'Detailed' },
+              { value: 'summary', label: t('ed.optSummary') },
+              { value: 'detailed', label: t('ed.optDetailed') },
             ]}
           />
         }
       />
 
       <PrivacyRow
-        label="Your introduction"
-        description="The short note you write about your family."
+        label={t('ed.privBio')}
+        description={t('ed.privBioDesc')}
         preview={
           value.parentBio === 'discovery'
-            ? 'Shown to anyone browsing'
-            : 'Shown only after you connect'
+            ? t('ed.bioBrowsing')
+            : t('ed.bioConnected')
         }
         control={
           <Segmented
-            label="Bio disclosure"
+            label={t('ed.bioDisclosure')}
             value={value.parentBio}
             onChange={(v) => onChange({ parentBio: v })}
             options={[
-              { value: 'connected_only', label: 'After connecting' },
-              { value: 'discovery', label: 'When browsing' },
+              { value: 'connected_only', label: t('ed.optAfterConnecting') },
+              { value: 'discovery', label: t('ed.optWhenBrowsing') },
             ]}
           />
         }
@@ -517,6 +512,7 @@ function PrivacyRow({
   preview: string;
   control: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="privacy-row">
       <div>
@@ -526,7 +522,7 @@ function PrivacyRow({
         </p>
         <div className="preview-box">
           <div className="tiny muted" style={{ marginBottom: 2 }}>
-            Other families see
+            {t('ed.othersSee')}
           </div>
           <div className="small strong">{preview}</div>
         </div>
@@ -540,37 +536,23 @@ function PrivacyRow({
 /* Matching weight sliders                                                     */
 /* ========================================================================== */
 
-const WEIGHT_COPY: Array<{
-  key: 'interests' | 'age' | 'distance' | 'availability' | 'style';
-  label: string;
-  description: string;
-}> = [
-  {
-    key: 'interests',
-    label: 'Shared interests',
-    description: 'How much weight to give what your children actually like doing.',
-  },
-  {
-    key: 'age',
-    label: 'Similar ages',
-    description: 'How close in age the children should be.',
-  },
-  {
-    key: 'distance',
-    label: 'Distance',
-    description: 'How much to favour families nearer to you.',
-  },
-  {
-    key: 'availability',
-    label: 'Matching availability',
-    description: 'How much overlapping free time should count.',
-  },
-  {
-    key: 'style',
-    label: 'Playdate style',
-    description: 'How much it matters that you like to meet the same way.',
-  },
-];
+const WEIGHT_KEYS = ['interests', 'age', 'distance', 'availability', 'style'] as const;
+
+const WEIGHT_LABEL = {
+  interests: 'ed.wInterests',
+  age: 'ed.wAge',
+  distance: 'ed.wDistance',
+  availability: 'ed.wAvailability',
+  style: 'ed.wStyle',
+} as const;
+
+const WEIGHT_DESC = {
+  interests: 'ed.wInterestsDesc',
+  age: 'ed.wAgeDesc',
+  distance: 'ed.wDistanceDesc',
+  availability: 'ed.wAvailabilityDesc',
+  style: 'ed.wStyleDesc',
+} as const;
 
 export function WeightEditor({
   value,
@@ -579,32 +561,31 @@ export function WeightEditor({
   value: Record<string, Importance>;
   onChange: (key: string, v: Importance) => void;
 }) {
+  const t = useT();
+  const impLabels = importanceLabels(t);
+
   return (
     <div className="stack stack-4">
-      {WEIGHT_COPY.map((w) => (
-        <div key={w.key} className="row row-between row-4" style={{ flexWrap: 'wrap' }}>
+      {WEIGHT_KEYS.map((key) => (
+        <div key={key} className="row row-between row-4" style={{ flexWrap: 'wrap' }}>
           <div style={{ minWidth: 200, flex: 1 }}>
-            <div className="strong small">{w.label}</div>
-            <div className="tiny muted">{w.description}</div>
+            <div className="strong small">{t(WEIGHT_LABEL[key])}</div>
+            <div className="tiny muted">{t(WEIGHT_DESC[key])}</div>
           </div>
           <div className="row row-3">
             <Stars
-              value={value[w.key]}
-              onChange={(v) => onChange(w.key, v)}
-              label={`${w.label} importance`}
-              labels={IMPORTANCE_LABELS}
+              value={value[key]}
+              onChange={(v) => onChange(key, v)}
+              label={t('compat.importanceOf', { label: t(WEIGHT_LABEL[key]) })}
+              labels={impLabels}
             />
             <span className="tiny muted" style={{ minWidth: 110 }}>
-              {IMPORTANCE_LABELS[value[w.key]]}
+              {impLabels[value[key]]}
             </span>
           </div>
         </div>
       ))}
-      <p className="tiny muted">
-        These weights are private and only shape your own results. Something you mark
-        “extremely important” counts for far more than something you mark “not important” —
-        it is not a simple tally.
-      </p>
+      <p className="tiny muted">{t('ed.weightsNote')}</p>
     </div>
   );
 }

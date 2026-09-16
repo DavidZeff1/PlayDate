@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services';
+import { useI18n, useT } from '../../i18n';
+import type { TKey } from '../../i18n/types';
 import { useApp } from '../../state/AppContext';
 import type {
   AvailabilitySlot,
@@ -33,16 +35,21 @@ import {
 
 type Section = 'privacy' | 'matching' | 'availability' | 'security' | 'blocked' | 'prototype';
 
-const SECTIONS: Array<{ id: Section; label: string }> = [
-  { id: 'privacy', label: 'Privacy' },
-  { id: 'matching', label: 'Matching' },
-  { id: 'availability', label: 'Availability' },
-  { id: 'security', label: 'Security' },
-  { id: 'blocked', label: 'Blocked families' },
-  { id: 'prototype', label: 'About this prototype' },
+/**
+ * Section labels are dictionary KEYS, not sentences — this array is module scope and
+ * cannot call the translate hook. `Settings` resolves them at render time.
+ */
+const SECTIONS: Array<{ id: Section; labelKey: TKey }> = [
+  { id: 'privacy', labelKey: 'nav.privacy' },
+  { id: 'matching', labelKey: 'set.matching' },
+  { id: 'availability', labelKey: 'ob.step8' },
+  { id: 'security', labelKey: 'set.security' },
+  { id: 'blocked', labelKey: 'set.blocked' },
+  { id: 'prototype', labelKey: 'set.aboutPrototype' },
 ];
 
 export function Settings() {
+  const t = useT();
   const { family, account, refresh } = useApp();
   const toast = useToast();
   const [section, setSection] = useState<Section>('privacy');
@@ -52,19 +59,19 @@ export function Settings() {
   return (
     <div className="stack stack-6">
       <div className="page-head">
-        <h1>Settings</h1>
-        <p>What other families can see, how matching works for you, and your account security.</p>
+        <h1>{t('nav.settings')}</h1>
+        <p>{t('set.sub')}</p>
       </div>
 
       <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Settings sections">
+        <nav className="settings-nav" aria-label={t('set.sections')}>
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               aria-current={section === s.id}
               onClick={() => setSection(s.id)}
             >
-              {s.label}
+              {t(s.labelKey)}
             </button>
           ))}
         </nav>
@@ -89,6 +96,7 @@ type Toast = ReturnType<typeof useToast>;
 /* ========================================================================== */
 
 function PrivacySection({ onSaved, toast }: { onSaved: () => Promise<void>; toast: Toast }) {
+  const t = useT();
   const { family } = useApp();
   const [draft, setDraft] = useState<PrivacySettings | null>(family?.privacy ?? null);
   const [busy, setBusy] = useState(false);
@@ -106,7 +114,7 @@ function PrivacySection({ onSaved, toast }: { onSaved: () => Promise<void>; toas
     try {
       await api.updatePrivacy(draft);
       await onSaved();
-      toast.push('Privacy settings updated.', 'ok');
+      toast.push(t('set.privacyUpdated'), 'ok');
     } finally {
       setBusy(false);
     }
@@ -116,10 +124,10 @@ function PrivacySection({ onSaved, toast }: { onSaved: () => Promise<void>; toas
     <div className="stack stack-6">
       <section className="card">
         <div className="card-header">
-          <span className="card-title">What other families can see</span>
+          <span className="card-title">{t('set.whatOthersSee')}</span>
           {dirty && (
             <button className="btn btn-primary btn-sm" onClick={save} disabled={busy}>
-              {busy ? 'Saving…' : 'Save changes'}
+              {busy ? t('common.saving') : t('common.saveChanges')}
             </button>
           )}
         </div>
@@ -140,19 +148,19 @@ function PrivacySection({ onSaved, toast }: { onSaved: () => Promise<void>; toas
 
       <section className="card">
         <div className="card-header">
-          <span className="card-title">Discovery</span>
+          <span className="card-title">{t('set.discovery')}</span>
         </div>
         <div className="card-body stack stack-5">
           <Switch
-            label="Appear in other families' results"
-            description="Turn this off to pause discovery without deleting anything. Existing conversations continue."
+            label={t('ob.priv.discoverable')}
+            description={t('set.appearDesc')}
             checked={draft.discoverable}
             onChange={(v) => setDraft({ ...draft, discoverable: v })}
           />
           <hr className="divider" />
           <Switch
-            label="Only accept requests from ID-verified parents"
-            description="Strongly recommended. Parents who have not completed identity verification cannot send you a request at all."
+            label={t('ob.priv.verifiedOnly')}
+            description={t('ob.priv.verifiedOnlyDesc')}
             checked={draft.requireVerifiedToRequest}
             onChange={(v) => setDraft({ ...draft, requireVerifiedToRequest: v })}
           />
@@ -160,16 +168,14 @@ function PrivacySection({ onSaved, toast }: { onSaved: () => Promise<void>; toas
         {dirty && (
           <div className="card-footer">
             <button className="btn btn-primary btn-sm" onClick={save} disabled={busy}>
-              {busy ? 'Saving…' : 'Save changes'}
+              {busy ? t('common.saving') : t('common.saveChanges')}
             </button>
           </div>
         )}
       </section>
 
-      <Alert tone="info" title="Never shown, at any setting">
-        Your legal name, date of birth, phone number, email address, home address and precise
-        location. These live in a separate record from your family profile and have no path
-        into anything another family receives.
+      <Alert tone="info" title={t('set.neverShownTitle')}>
+        {t('set.neverShownBody')}
       </Alert>
     </div>
   );
@@ -180,6 +186,7 @@ function PrivacySection({ onSaved, toast }: { onSaved: () => Promise<void>; toas
 /* ========================================================================== */
 
 function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toast: Toast }) {
+  const t = useT();
   const { family } = useApp();
   const [maxTravelKm, setMaxTravelKm] = useState(family?.preferences.maxTravelKm ?? 8);
   const [ageFlex, setAgeFlex] = useState(family?.preferences.ageFlexibilityYears ?? 2);
@@ -209,7 +216,7 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
         weights: weights as never,
       });
       await onSaved();
-      toast.push('Matching preferences updated. Your results will change.', 'ok');
+      toast.push(t('set.matchingUpdated'), 'ok');
     } finally {
       setBusy(false);
     }
@@ -219,13 +226,11 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
     <div className="stack stack-6">
       <section className="card">
         <div className="card-header">
-          <span className="card-title">Hard limits</span>
+          <span className="card-title">{t('set.hardLimits')}</span>
         </div>
         <div className="card-body stack stack-6">
           <Alert tone="info">
-            These are filters, not preferences. Families outside them are removed from your
-            results entirely, rather than ranked lower — you will not be shown families you
-            could not realistically meet.
+            {t('set.hardLimitsBody')}
           </Alert>
 
           <div className="field">
@@ -233,7 +238,7 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
               How far will you travel? — {maxTravelKm} km
             </label>
             <div className="hint">
-              Applied in both directions: we also respect the other family's limit.
+              {t('ob.loc.travelHint')}
             </div>
             <input
               id="set-travel"
@@ -251,7 +256,7 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
               Acceptable age gap — {ageFlex} year{ageFlex === 1 ? '' : 's'}
             </label>
             <div className="hint">
-              How far from one of your children's ages another child can be.
+              {t('ob.loc.ageGapHint')}
             </div>
             <input
               id="set-agegap"
@@ -271,7 +276,7 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
           <span className="card-title">
             <span className="row row-2">
               <IconSliders size={15} />
-              What should we weight most?
+              {t('ob.loc.weightH')}
             </span>
           </span>
         </div>
@@ -282,7 +287,7 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
 
       <section className="card">
         <div className="card-header">
-          <span className="card-title">How you like to meet</span>
+          <span className="card-title">{t('privacyPage.disc7')}</span>
         </div>
         <div className="card-body">
           <StylePicker value={styles} onChange={setStyles} />
@@ -290,7 +295,7 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
       </section>
 
       <button className="btn btn-primary" onClick={save} disabled={busy} style={{ alignSelf: 'flex-start' }}>
-        {busy ? 'Saving…' : 'Save matching preferences'}
+        {busy ? t('common.saving') : t('set.saveMatching')}
       </button>
     </div>
   );
@@ -301,6 +306,7 @@ function MatchingSection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
 /* ========================================================================== */
 
 function AvailabilitySection({ onSaved, toast }: { onSaved: () => Promise<void>; toast: Toast }) {
+  const t = useT();
   const { family } = useApp();
   const [slots, setSlots] = useState<AvailabilitySlot[]>(family?.availability ?? []);
   const [busy, setBusy] = useState(false);
@@ -314,7 +320,7 @@ function AvailabilitySection({ onSaved, toast }: { onSaved: () => Promise<void>;
   return (
     <section className="card">
       <div className="card-header">
-        <span className="card-title">When are you usually free?</span>
+        <span className="card-title">{t('ob.avail.h1')}</span>
       </div>
       <div className="card-body stack stack-5">
         <AvailabilityGrid value={slots} onChange={setSlots} />
@@ -327,13 +333,13 @@ function AvailabilitySection({ onSaved, toast }: { onSaved: () => Promise<void>;
             try {
               await api.updateAvailability(slots);
               await onSaved();
-              toast.push('Availability updated.', 'ok');
+              toast.push(t('set.availUpdated'), 'ok');
             } finally {
               setBusy(false);
             }
           }}
         >
-          {busy ? 'Saving…' : 'Save availability'}
+          {busy ? t('common.saving') : t('set.saveAvailability')}
         </button>
       </div>
     </section>
@@ -345,8 +351,10 @@ function AvailabilitySection({ onSaved, toast }: { onSaved: () => Promise<void>;
 /* ========================================================================== */
 
 function SecuritySection({ onSaved, toast }: { onSaved: () => Promise<void>; toast: Toast }) {
+  const t = useT();
   const { account } = useApp();
   const [devices, setDevices] = useState<DeviceSession[]>([]);
+  const { d } = useI18n();
 
   const load = useCallback(async () => {
     setDevices(await api.getDeviceSessions());
@@ -365,19 +373,19 @@ function SecuritySection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
           <span className="card-title">
             <span className="row row-2">
               <IconKey size={15} />
-              Sign-in security
+              {t('set.signInSecurity')}
             </span>
           </span>
         </div>
         <div className="card-body stack stack-5">
           <Switch
-            label="Two-factor authentication"
-            description="Requires a second factor when you sign in. Other families see this as a trust signal."
+            label={t('how.p1.i3')}
+            description={t('set.2faDesc')}
             checked={account.twoFactorEnabled}
             onChange={async (v) => {
               await api.setTwoFactor(v);
               await onSaved();
-              toast.push(v ? 'Two-factor authentication on.' : 'Two-factor authentication off.', 'ok');
+              toast.push(v ? t('set.2faOn') : t('set.2faOff'), 'ok');
             }}
           />
 
@@ -385,27 +393,27 @@ function SecuritySection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
 
           <div className="stack stack-3">
             <div className="row row-between">
-              <span className="small">Email verified</span>
+              <span className="small">{t('trust.email_verified')}</span>
               {account.emailVerified ? (
                 <Badge tone="ok">
                   <IconCheck size={10} /> Verified
                 </Badge>
               ) : (
-                <Badge tone="warn">Not verified</Badge>
+                <Badge tone="warn">{t('set.notVerified')}</Badge>
               )}
             </div>
             <div className="row row-between">
-              <span className="small">Phone verified</span>
+              <span className="small">{t('trust.phone_verified')}</span>
               {account.phoneVerified ? (
                 <Badge tone="ok">
                   <IconCheck size={10} /> Verified
                 </Badge>
               ) : (
-                <Badge tone="warn">Not verified</Badge>
+                <Badge tone="warn">{t('set.notVerified')}</Badge>
               )}
             </div>
             <div className="row row-between">
-              <span className="small">Account state</span>
+              <span className="small">{t('set.accountState')}</span>
               <Badge tone={account.state === 'active' ? 'ok' : 'pending'}>
                 {account.state.replace(/_/g, ' ')}
               </Badge>
@@ -416,43 +424,40 @@ function SecuritySection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
 
       <section className="card">
         <div className="card-header">
-          <span className="card-title">Where you are signed in</span>
+          <span className="card-title">{t('set.whereSignedIn')}</span>
         </div>
         <div className="card-body">
           <div className="stack stack-3">
-            {devices.map((d) => (
-              <div key={d.id} className="row row-between row-4 panel">
+            {devices.map((dev) => (
+              <div key={dev.id} className="row row-between row-4 panel">
                 <div>
                   <div className="small strong row row-2">
-                    {d.label}
-                    {d.current && <Badge tone="brand">This device</Badge>}
+                    {dev.label}
+                    {dev.current && <Badge tone="brand">{t('set.thisDevice')}</Badge>}
                   </div>
                   <div className="tiny muted">
-                    {d.location} · last seen{' '}
-                    {new Date(d.lastSeenAt).toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'short',
-                    })}
+                    {dev.location} · last seen{' '}
+                    {d(dev.lastSeenAt, { day: 'numeric', month: 'short' })}
                   </div>
                 </div>
-                {!d.current && (
+                {!dev.current && (
                   <button
                     className="btn btn-ghost btn-sm"
                     onClick={async () => {
-                      await api.revokeDeviceSession(d.id);
+                      await api.revokeDeviceSession(dev.id);
                       await load();
-                      toast.push('Session signed out.', 'ok');
+                      toast.push(t('set.deviceSignedOut'), 'ok');
                     }}
                   >
                     <IconTrash size={14} />
-                    Sign out
+                    {t('nav.signOut')}
                   </button>
                 )}
               </div>
             ))}
           </div>
           <p className="tiny muted" style={{ marginTop: 'var(--sp-4)' }}>
-            If you see a device you do not recognise, sign it out and change your password.
+            {t('set.unknownDevice')}
           </p>
         </div>
       </section>
@@ -462,18 +467,18 @@ function SecuritySection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
           <span className="card-title">
             <span className="row row-2">
               <IconLock size={15} />
-              How your account is protected
+              {t('set.howProtected')}
             </span>
           </span>
         </div>
         <div className="card-body">
           <ul className="stack stack-3 small">
             {[
-              ['Password hashing', 'Argon2id, server-side. We never store or transmit a plaintext password.'],
-              ['Sessions', 'HttpOnly, Secure, SameSite cookies that JavaScript cannot read, rotated on privilege change.'],
-              ['Rate limiting', 'Sign-in, verification codes, requests, messages and browsing are all limited per account.'],
-              ['Audit logging', 'Sensitive actions are recorded with personal data stripped out before writing.'],
-              ['Least privilege', 'Our own staff see only what an open case requires, and every elevated read is logged.'],
+              [t('set.prot1'), t('set.prot1b')],
+              [t('set.prot2'), t('set.prot2b')],
+              [t('set.prot3'), t('set.prot3b')],
+              [t('set.prot4'), t('set.prot4b')],
+              [t('set.prot5'), t('set.prot5b')],
             ].map(([t, d]) => (
               <li key={t} className="row row-3" style={{ alignItems: 'flex-start' }}>
                 <span style={{ color: 'var(--ok-500)', marginTop: 2, flexShrink: 0 }}>
@@ -487,11 +492,7 @@ function SecuritySection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
           </ul>
           <div style={{ marginTop: 'var(--sp-5)' }}>
             <PrototypeNote>
-              The list above describes the production design. In this browser-only prototype,
-              sessions are held in <span className="mono">localStorage</span> rather than
-              HttpOnly cookies, and there is no server to hash a password. See{' '}
-              <span className="mono">docs/PROTOTYPE_DISCLOSURES.md</span> for the full
-              difference.
+              {t('proto.security')}
             </PrototypeNote>
           </div>
         </div>
@@ -505,6 +506,8 @@ function SecuritySection({ onSaved, toast }: { onSaved: () => Promise<void>; toa
 /* ========================================================================== */
 
 function BlockedSection({ toast }: { toast: Toast }) {
+  const t = useT();
+  const { d } = useI18n();
   const [blocked, setBlocked] = useState<
     Array<{ familyId: string; displayName: string; createdAt: string }>
   >([]);
@@ -523,15 +526,14 @@ function BlockedSection({ toast }: { toast: Toast }) {
         <span className="card-title">
           <span className="row row-2">
             <IconBlock size={15} />
-            Blocked families
+            {t('set.blocked')}
           </span>
         </span>
       </div>
       <div className="card-body">
         {blocked.length === 0 ? (
           <p className="small muted">
-            You have not blocked anyone. Blocking is available from any family profile,
-            conversation or request, and never requires a reason.
+            {t('set.noBlocked')}
           </p>
         ) : (
           <div className="stack stack-3">
@@ -540,7 +542,7 @@ function BlockedSection({ toast }: { toast: Toast }) {
                 <div>
                   <div className="small strong">{b.displayName}</div>
                   <div className="tiny muted">
-                    Blocked {new Date(b.createdAt).toLocaleDateString('en-GB')}
+                    {t('set.blockedOn', { date: d(b.createdAt) })}
                   </div>
                 </div>
                 <button
@@ -548,17 +550,17 @@ function BlockedSection({ toast }: { toast: Toast }) {
                   onClick={async () => {
                     await api.unblockFamily(b.familyId);
                     await load();
-                    toast.push('Family unblocked.', 'ok');
+                    toast.push(t('set.unblocked'), 'ok');
                   }}
                 >
-                  Unblock
+                  {t('common.unblock')}
                 </button>
               </div>
             ))}
           </div>
         )}
         <p className="tiny muted" style={{ marginTop: 'var(--sp-4)' }}>
-          Blocked families are not told. Unblocking does not restore a closed conversation.
+          {t('set.blockedNote')}
         </p>
       </div>
     </section>
@@ -570,29 +572,29 @@ function BlockedSection({ toast }: { toast: Toast }) {
 /* ========================================================================== */
 
 function PrototypeSection() {
+  const t = useT();
   const [busy, setBusy] = useState(false);
 
   return (
     <div className="stack stack-6">
       <section className="card">
         <div className="card-header">
-          <span className="card-title">About this prototype</span>
+          <span className="card-title">{t('set.aboutPrototype')}</span>
         </div>
         <div className="card-body stack stack-5">
           <PrototypeNote>
-            This is a frontend prototype with a mock data layer. Every family here is
-            fictional.
+            {t('set.protoIntro')}
           </PrototypeNote>
 
           <div className="stack stack-3 small">
             {[
-              ['Identity verification', 'Simulated. No provider is connected, and no document is ever checked.'],
-              ['Email and SMS', 'Simulated. Codes are shown on screen instead of being delivered.'],
-              ['Data storage', 'Your browser\'s localStorage. Nothing is sent anywhere.'],
-              ['Password hashing', 'Not performed — there is no server.'],
-              ['Moderation decisions', 'Recorded locally. No real reviewer sees anything.'],
-              ['Security review', 'Not performed. This code has not been audited or penetration-tested.'],
-              ['Legal compliance', 'Not assessed. A DPIA and jurisdiction-specific review are production requirements.'],
+              [t('ob.step3'), t('set.protoV1')],
+              [t('set.protoK2'), t('set.protoV2')],
+              [t('set.protoK3'), 'Your browser\'s localStorage. Nothing is sent anywhere.'],
+              [t('set.prot1'), t('set.protoV4')],
+              [t('set.protoK5'), t('set.protoV5')],
+              [t('set.protoK6'), t('set.protoV6')],
+              [t('set.protoK7'), t('set.protoV7')],
             ].map(([k, v]) => (
               <div key={k} className="row row-between row-4" style={{ alignItems: 'flex-start' }}>
                 <span className="strong" style={{ minWidth: 160 }}>
@@ -609,12 +611,11 @@ function PrototypeSection() {
 
       <section className="card">
         <div className="card-header">
-          <span className="card-title">Reset the prototype</span>
+          <span className="card-title">{t('set.resetTitle')}</span>
         </div>
         <div className="card-body stack stack-4">
           <p className="small muted">
-            Clears everything stored in this browser and restores the seeded demo families,
-            conversations and playdates. You will be signed out.
+            {t('set.resetBody')}
           </p>
           <button
             className="btn btn-danger-quiet"
@@ -627,7 +628,7 @@ function PrototypeSection() {
             }}
           >
             <IconTrash size={15} />
-            {busy ? 'Resetting…' : 'Reset all prototype data'}
+            {busy ? t('set.resetting') : t('set.resetCta')}
           </button>
         </div>
       </section>

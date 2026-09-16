@@ -46,6 +46,10 @@ These are implemented properly and are what the prototype is actually for:
 - **The interaction design** — every flow in the brief works: onboarding, discovery,
   matching, requests, acceptance, messaging, playdate planning, reporting, blocking,
   moderation.
+- **English and Hebrew localisation** (`src/i18n/`) — the whole interface, both
+  directions. The Hebrew dictionary is typed against the English one, so an untranslated
+  key fails the build rather than reaching a parent's screen. RTL is real layout
+  mirroring via CSS logical properties, not a flipped stylesheet.
 
 ---
 
@@ -68,6 +72,11 @@ These are implemented properly and are what the prototype is actually for:
 7. **No tests above the domain layer.** The matching and redaction logic is tested;
    components and flows were verified by driving a real browser, not by an automated
    regression suite.
+8. **The Hebrew copy has not been reviewed by a native-speaker editor.** The mechanism is
+   sound and the coverage is complete, but the register and phrasing of ~1,350 strings is
+   a translation-review task, not an engineering one. Hebrew second person is written in
+   the plural (אתם) throughout to avoid guessing a parent's gender; a professional pass
+   should confirm that choice reads well in every context.
 
 ---
 

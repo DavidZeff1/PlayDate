@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppProvider } from './state/AppContext';
+import { I18nProvider } from './i18n';
 import { ToastProvider } from './components/ui';
 import { SiteLayout } from './components/layout/SiteLayout';
 import { AppLayout } from './components/layout/AppLayout';
@@ -33,8 +34,9 @@ import { Admin } from './pages/admin/Admin';
 export function App() {
   return (
     <BrowserRouter>
-      <AppProvider>
-        <ToastProvider>
+      <I18nProvider>
+        <AppProvider>
+          <ToastProvider>
           <Routes>
             {/* Public */}
             <Route element={<SiteLayout />}>
@@ -69,8 +71,9 @@ export function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </ToastProvider>
-      </AppProvider>
+          </ToastProvider>
+        </AppProvider>
+      </I18nProvider>
     </BrowserRouter>
   );
 }

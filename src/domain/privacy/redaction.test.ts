@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { projectFamily, redactForLog, summariseAvailability, locationLabel } from './redaction';
+import { projectFamily, redactForLog, summariseAvailability, locationView } from './redaction';
 import { DisclosureTier } from '../types';
 import type { Family } from '../types';
 import { buildSeed } from '../../data/seed';
@@ -50,8 +50,8 @@ describe('projectFamily — what must never cross the boundary', () => {
     const discovery = projectFamily(neighbourhoodFamily, { tier: DisclosureTier.DISCOVERY })!;
     const connected = projectFamily(neighbourhoodFamily, { tier: DisclosureTier.CONNECTED })!;
 
-    expect(discovery.locationLabel).toBe('Jerusalem area');
-    expect(connected.locationLabel).toContain('Rehavia');
+    expect(discovery.location).toEqual({ kind: 'area', area: 'Jerusalem area' });
+    expect(connected.location).toMatchObject({ kind: 'neighborhood', neighborhood: 'Rehavia' });
   });
 
   it('returns a distance band, never an exact distance', () => {
@@ -59,7 +59,8 @@ describe('projectFamily — what must never cross the boundary', () => {
       tier: DisclosureTier.DISCOVERY,
       distanceKm: 3.14159,
     })!;
-    expect(withDistance.distanceBand).toBe('2–4 km');
+    // A band key, never a figure — the exact distance must not survive projection.
+    expect(withDistance.distanceBandKey).toBe('dist.2to4');
     expect(JSON.stringify(withDistance)).not.toContain('3.14');
   });
 
@@ -79,7 +80,8 @@ describe('projectFamily — children', () => {
   it('honours a hidden name setting', () => {
     const hiddenNames: Family = { ...cohen, privacy: { ...cohen.privacy, childName: 'hidden' } };
     const p = projectFamily(hiddenNames, { tier: DisclosureTier.DISCOVERY })!;
-    expect(p.children[0].displayName).toBe('Child 1');
+    // A positional placeholder, not the English string — the UI localises it.
+    expect(p.children[0].displayName).toEqual({ placeholderIndex: 1 });
     expect(JSON.stringify(p)).not.toContain('Noa');
   });
 
@@ -92,13 +94,13 @@ describe('projectFamily — children', () => {
 
   it('bands ages when the parent chose range disclosure', () => {
     const p = projectFamily(katz, { tier: DisclosureTier.DISCOVERY })!;
-    expect(p.children[0].ageLabel).toBe('7–9 years old');
+    expect(p.children[0].ageView).toEqual({ kind: 'range', from: 7, to: 9 });
   });
 
   it('never leaks a surname through a child name', () => {
     const p = projectFamily(cohen, { tier: DisclosureTier.CONNECTED })!;
     for (const c of p.children) {
-      expect(c.displayName).not.toContain('Cohen');
+      if (typeof c.displayName === 'string') expect(c.displayName).not.toContain('Cohen');
     }
   });
 
@@ -147,9 +149,11 @@ describe('projectFamily — children', () => {
 describe('projectFamily — availability', () => {
   it('gives only a coarse summary at discovery tier', () => {
     const p = projectFamily(cohen, { tier: DisclosureTier.DISCOVERY })!;
-    // A stranger must not learn the family's weekly routine.
+    // A stranger must not learn the family's weekly routine: only a coarse scope and
+    // which blocks of the day, never which days.
     expect(p.availability).toBeUndefined();
-    expect(p.availabilitySummary.length).toBeGreaterThan(0);
+    expect(p.availabilitySummary.scope).not.toBe('none');
+    expect(JSON.stringify(p.availabilitySummary)).not.toContain('sat');
   });
 
   it('gives detail once connected, if the family allows it', () => {
@@ -167,14 +171,17 @@ describe('projectFamily — availability', () => {
         { day: 'fri', block: 'afternoon' },
         { day: 'sat', block: 'afternoon' },
       ]),
-    ).toBe('Weekend afternoons');
+    ).toEqual({ scope: 'weekend', blocks: ['afternoon'] });
   });
 });
 
-describe('locationLabel', () => {
+describe('locationView', () => {
   it('says nothing useful when location is hidden', () => {
     const hidden: Family = { ...cohen, privacy: { ...cohen.privacy, location: 'hidden' } };
-    expect(locationLabel(hidden, DisclosureTier.CONNECTED)).toBe('Location not shared');
+    const view = locationView(hidden, DisclosureTier.CONNECTED);
+    expect(view).toEqual({ kind: 'hidden' });
+    // Nothing about the area survives, not even as a field the UI might render.
+    expect(JSON.stringify(view)).not.toContain('Jerusalem');
   });
 });
 

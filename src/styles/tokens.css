@@ -258,7 +258,7 @@ hr {
 
 .skip-link {
   position: absolute;
-  left: -9999px;
+  inset-inline-start: -9999px;
   top: 0;
   z-index: 100;
   background: var(--brand-600);
@@ -269,7 +269,7 @@ hr {
 }
 
 .skip-link:focus {
-  left: 0;
+  inset-inline-start: 0;
 }
 
 .stack {

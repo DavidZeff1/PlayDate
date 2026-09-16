@@ -1,0 +1,157 @@
+/**
+ * Right-to-left adjustments.
+ *
+ * The layout mirrors almost entirely through CSS logical properties in the other
+ * stylesheets — `margin-inline-start`, `inset-inline-end`, `border-inline-end`,
+ * `text-align: start`. This file covers only the handful of things logical properties
+ * cannot express:
+ *
+ *   1. `transform: translateX()`, which is always physical. Those rules multiply by
+ *      `var(--dir)`, which is 1 in LTR and -1 here.
+ *   2. `background-position` for the select chevron.
+ *   3. Asymmetric border radii that encode a direction (chat bubbles, the skip link).
+ *   4. Typography — Latin display faces have no Hebrew glyphs, so Hebrew gets its own.
+ *
+ * Directional icons (arrows, chevrons) are flipped in React by `DirectionalIcon`
+ * rather than with a CSS transform, so they stay crisp and keep their hit area.
+ */
+
+:root {
+  /* Multiplier for physical translateX values. Flipped under RTL below. */
+  --dir: 1;
+}
+
+[dir='rtl'] {
+  --dir: -1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Typography                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Inter and Fraunges carry no Hebrew glyphs, so a Hebrew page rendered with them
+ * falls back to whatever the OS picks — usually a mismatched weight and metric.
+ * Heebo is a Hebrew companion to the same grotesque skeleton as Inter; Frank Ruhl
+ * Libre is a classic Hebrew serif that plays the role Fraunces plays in English.
+ */
+[dir='rtl'] body {
+  font-family: 'Heebo', 'Assistant', 'Arial Hebrew', var(--font-sans);
+  /* Hebrew has no ascenders/descenders to speak of and reads tighter; a touch more
+     line-height keeps vowel-less text from feeling cramped. */
+  line-height: 1.65;
+}
+
+[dir='rtl'] .display,
+[dir='rtl'] .greeting {
+  font-family: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  font-weight: 500;
+}
+
+/* Hebrew has no capitals, so uppercasing produces nothing but wider tracking. */
+[dir='rtl'] .eyebrow,
+[dir='rtl'] .nav-section-label,
+[dir='rtl'] table.data th,
+[dir='rtl'] .compare-col h4 {
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+/* Tighter negative tracking is a Latin optical trick; it hurts Hebrew legibility. */
+[dir='rtl'] h1,
+[dir='rtl'] h2,
+[dir='rtl'] h3,
+[dir='rtl'] h4,
+[dir='rtl'] .hero h1,
+[dir='rtl'] .greeting,
+[dir='rtl'] .stat-value,
+[dir='rtl'] .logo {
+  letter-spacing: 0;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Controls that encode a direction                                            */
+/* -------------------------------------------------------------------------- */
+
+[dir='rtl'] .select {
+  background-position: left 0.8rem center;
+}
+
+[dir='rtl'] .skip-link {
+  border-radius: 0 0 0 var(--r-md);
+}
+
+/* Chat bubbles point at their sender, so the flat corner swaps sides. */
+[dir='rtl'] .bubble-them {
+  border-bottom-left-radius: var(--r-lg);
+  border-bottom-right-radius: var(--r-sm);
+}
+
+[dir='rtl'] .bubble-mine {
+  border-bottom-right-radius: var(--r-lg);
+  border-bottom-left-radius: var(--r-sm);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Numbers, codes and identifiers stay left-to-right                           */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * A phone number, a verification code, an id or a timestamp is a left-to-right
+ * sequence even inside Hebrew text. Without this, the bidi algorithm reorders the
+ * surrounding punctuation and a code reads back-to-front.
+ */
+[dir='rtl'] .mono,
+[dir='rtl'] input[type='tel'],
+[dir='rtl'] input[type='email'],
+[dir='rtl'] input[type='date'],
+[dir='rtl'] input[type='time'],
+[dir='rtl'] input[inputmode='numeric'],
+[dir='rtl'] .ltr-nums {
+  direction: ltr;
+  text-align: start;
+}
+
+/* An email field is LTR content but its label and placeholder sit on the right. */
+[dir='rtl'] input[type='email'],
+[dir='rtl'] input[type='tel'] {
+  text-align: right;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Decorative direction                                                        */
+/* -------------------------------------------------------------------------- */
+
+/* The hero's stacked preview cards lean the other way so they open into the page. */
+[dir='rtl'] .hero-preview-card {
+  transform: rotate(0.6deg);
+}
+
+[dir='rtl'] .hero-preview-back {
+  transform: rotate(-2.2deg) translate(-14px, 14px);
+}
+
+/* The onboarding aside sits on the leading edge, so its gradient follows. */
+[dir='rtl'] .onboarding-aside {
+  background: linear-gradient(195deg, var(--brand-700), var(--brand-800));
+}
+
+/* Progress and meter segments fill from the leading edge in both directions
+   because they are flex rows, but an explicit row-reverse keeps the fill
+   reading as "forward" rather than "backward" under RTL. */
+[dir='rtl'] .onboarding-progress,
+[dir='rtl'] .meter {
+  flex-direction: row-reverse;
+}
+
+/* The pairing connector is a symmetric dashed rule — no change needed — but the
+   dashed gradient direction is flipped so the dashes start from the leading edge. */
+[dir='rtl'] .pairing-link {
+  background: repeating-linear-gradient(
+    -90deg,
+    var(--line-strong) 0,
+    var(--line-strong) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}

@@ -75,8 +75,14 @@ export interface TrustSignal {
   kind: TrustSignalKind;
   /** Whether the signal is currently satisfied. */
   satisfied: boolean;
-  /** Human-readable detail, e.g. "Member since March 2024". Safe to display. */
-  detail?: string;
+  /**
+   * Optional detail line, as a translation key plus values — "Member since March 2024",
+   * "11 playdates completed". A pre-composed sentence here would be untranslatable.
+   */
+  detailKey?: string;
+  detailVars?: Record<string, string | number>;
+  /** ISO date for detail lines that render a month name in the reader's locale. */
+  detailDate?: string;
   /** For count-like signals (completed playdates, account age in months). */
   value?: number;
 }
@@ -319,13 +325,24 @@ export enum DisclosureTier {
   SELF = 4,
 }
 
+/**
+ * How a projected age should be rendered. Structured rather than pre-formatted so the
+ * projection carries no language — see `FamilyProjection`.
+ */
+export type AgeDisclosureView =
+  | { kind: 'exact'; age: number }
+  | { kind: 'range'; from: number; to: number };
+
 /** A child as seen by another family. Has no field that could identify them offline. */
 export interface ChildProjection {
   id: ChildId;
-  /** Respects `PrivacySettings.childName`: first name, nickname, or "Child 1". */
-  displayName: string;
-  /** Respects `PrivacySettings.childAges`: "8" or "7–9". */
-  ageLabel: string;
+  /**
+   * Respects `PrivacySettings.childName`. Either the name the parent chose to reveal,
+   * or a positional placeholder the UI translates ("Child 1" / "ילד 1").
+   */
+  displayName: string | { placeholderIndex: number };
+  /** Respects `PrivacySettings.childAges`. Formatted by the UI. */
+  ageView: AgeDisclosureView;
   age: number;
   interests: Array<{ interestId: string; enthusiasm: Importance }>;
   temperament?: ChildTemperament;
@@ -335,15 +352,34 @@ export interface ChildProjection {
 }
 
 /**
+ * How much of a family's location the viewer may see, as data rather than a sentence.
+ * `distanceBandKey` is a coarse band ("2–4 km"), never a figure — see redaction.ts.
+ */
+export type LocationView =
+  | { kind: 'hidden' }
+  | { kind: 'area'; area: string }
+  | { kind: 'neighborhood'; area: string; neighborhood: string }
+  | { kind: 'distance'; bandKey: string };
+
+/** Coarse availability summary, as data. The UI phrases it. */
+export interface AvailabilityView {
+  scope: 'weekend' | 'weekday' | 'mixed' | 'none';
+  blocks: TimeBlock[];
+}
+
+/**
  * A family as seen by another family. This type deliberately has NO address, phone,
  * email, legal name, date of birth, school, or coordinates. A UI bug cannot leak what
  * the object does not contain.
+ *
+ * It also carries no pre-rendered English: locations, ages and availability are
+ * structured views that the UI formats in the reader's language. An API that returned
+ * "Jerusalem area" would be an API that only works in one language.
  */
 export interface FamilyProjection {
   id: FamilyId;
   displayName: string;
-  /** "Jerusalem area" / "Rehavia, Jerusalem" / "About 3 km away" / "Location hidden". */
-  locationLabel: string;
+  location: LocationView;
   tier: DisclosureTier;
   children: ChildProjection[];
   childCount: number;
@@ -353,12 +389,12 @@ export interface FamilyProjection {
   parentDisplayName?: string;
   parentBio?: string;
   languages: string[];
-  availabilitySummary: string;
+  availabilitySummary: AvailabilityView;
   /** Only populated at CONNECTED tier or above. */
   availability?: AvailabilitySlot[];
   styles: PlaydateStyle[];
-  /** Band, never an exact figure. e.g. "2–4 km". */
-  distanceBand?: string;
+  /** Band key, never an exact figure. Resolves to e.g. "2–4 km". */
+  distanceBandKey?: string;
   memberSince: string;
 }
 
@@ -427,7 +463,8 @@ export interface SafetyFlag {
     | 'pressure_language'
     | 'child_direct_contact';
   severity: 'info' | 'caution' | 'high';
-  message: string;
+  /** Translation key — the prompt is shown to the sender in their own language. */
+  messageKey: string;
 }
 
 export interface Conversation {

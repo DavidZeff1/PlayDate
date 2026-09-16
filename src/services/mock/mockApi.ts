@@ -825,7 +825,9 @@ export class MockPlayDateApi implements PlayDateApi {
     return delay(results);
   }
 
-  async excludedFamilies(): Promise<Array<{ displayName: string; reason: string }>> {
+  async excludedFamilies(): Promise<
+    Array<{ displayName: string; reasonKey: string; reasonVars?: Record<string, string | number> }>
+  > {
     const { family, account } = this.requireFamily();
     assertCanDiscover(account, family);
     const blocked = this.blockedIdsFor(family.id);
@@ -835,12 +837,14 @@ export class MockPlayDateApi implements PlayDateApi {
     });
     return delay(
       all
-        .filter((r) => r.result.excluded && r.result.exclusionReason !== 'Blocked')
+        .filter((r) => r.result.excluded && r.result.exclusionKey !== 'exclude.blocked')
         .map((r) => ({
           // Only the family's display name and the reason — no projection is built for
-          // a family the viewer is not entitled to see.
+          // a family the viewer is not entitled to see. The reason travels as a key so
+          // the UI renders it in the reader's language.
           displayName: r.family.displayName,
-          reason: r.result.exclusionReason ?? 'Not a match',
+          reasonKey: r.result.exclusionKey ?? 'exclude.notAvailable',
+          reasonVars: r.result.exclusionVars,
         })),
     );
   }
@@ -976,11 +980,14 @@ export class MockPlayDateApi implements PlayDateApi {
         note: note ? sanitiseText(note, 400) : undefined,
         status: 'pending',
         createdAt: new Date().toISOString(),
-        matchSummary: match.reasons
-          .filter((r) => r.tone === 'positive')
-          .slice(0, 3)
-          .map((r) => r.text)
-          .join(' · '),
+        // The summary is stored as keys, not a sentence: the recipient may read a
+        // different language from the sender.
+        matchSummary: JSON.stringify(
+          match.reasons
+            .filter((r) => r.tone === 'positive')
+            .slice(0, 3)
+            .map((r) => ({ key: r.key, vars: r.vars })),
+        ),
       };
       s.requests.push(request);
 
@@ -1841,10 +1848,10 @@ function buildNextSteps(input: {
   if (!account.emailVerified || !account.phoneVerified) {
     steps.push({
       id: 'verify-contact',
-      title: 'Verify your email and phone',
-      description: 'Two quick codes. This is the first layer of keeping PlayDate to real parents.',
+      titleKey: 'step.verifyContact.title',
+      descKey: 'step.verifyContact.desc',
+      ctaKey: 'step.verifyContact.cta',
       href: '/app/verification',
-      cta: 'Verify now',
       tone: 'action',
     });
   }
@@ -1852,11 +1859,10 @@ function buildNextSteps(input: {
   if (family.verificationStatus !== 'verified') {
     steps.push({
       id: 'verify-identity',
-      title: 'Complete identity verification',
-      description:
-        'Browsing families is only open to ID-verified parents. It usually takes a couple of minutes.',
+      titleKey: 'step.verifyId.title',
+      descKey: 'step.verifyId.desc',
+      ctaKey: 'step.verifyId.cta',
       href: '/app/verification',
-      cta: 'Start verification',
       tone: 'action',
     });
   }
@@ -1864,19 +1870,19 @@ function buildNextSteps(input: {
   if (family.children.length === 0) {
     steps.push({
       id: 'add-child',
-      title: 'Add your children',
-      description: 'Ages and interests are what make matching work. You control what others can see.',
+      titleKey: 'step.addChild.title',
+      descKey: 'step.addChild.desc',
+      ctaKey: 'step.addChild.cta',
       href: '/app/children',
-      cta: 'Add a child',
       tone: 'action',
     });
   } else if (family.children.some((c) => c.interests.length < 3)) {
     steps.push({
       id: 'add-interests',
-      title: 'Add a few more interests',
-      description: 'Three or more interests per child makes a noticeable difference to your matches.',
+      titleKey: 'step.addInterests.title',
+      descKey: 'step.addInterests.desc',
+      ctaKey: 'step.addInterests.cta',
       href: '/app/children',
-      cta: 'Edit interests',
       tone: 'info',
     });
   }
@@ -1884,10 +1890,10 @@ function buildNextSteps(input: {
   if (family.availability.length === 0) {
     steps.push({
       id: 'set-availability',
-      title: 'Set your availability',
-      description: 'Families with no overlapping free time are filtered out of each other\'s results.',
+      titleKey: 'step.availability.title',
+      descKey: 'step.availability.desc',
+      ctaKey: 'step.availability.cta',
       href: '/app/settings',
-      cta: 'Set availability',
       tone: 'action',
     });
   }
@@ -1895,10 +1901,11 @@ function buildNextSteps(input: {
   if (incoming > 0) {
     steps.push({
       id: 'respond-requests',
-      title: `${incoming} connection request${incoming === 1 ? '' : 's'} waiting`,
-      description: 'Accept, decline, or decide later. Declining is never shared with the other family.',
+      titleKey: incoming === 1 ? 'step.requestsOne.title' : 'step.requests.title',
+      titleVars: { n: incoming },
+      descKey: 'step.requests.desc',
+      ctaKey: 'step.requests.cta',
       href: '/app/requests',
-      cta: 'Review requests',
       tone: 'action',
     });
   }
@@ -1906,10 +1913,10 @@ function buildNextSteps(input: {
   if (!account.safetyGuidelinesAcceptedAt) {
     steps.push({
       id: 'safety',
-      title: 'Read the safety guidelines',
-      description: 'Two minutes on meeting safely, what we check, and how reporting works.',
+      titleKey: 'step.safety.title',
+      descKey: 'step.safety.desc',
+      ctaKey: 'step.safety.cta',
       href: '/app/safety',
-      cta: 'Read now',
       tone: 'safety',
     });
   }
@@ -1917,10 +1924,11 @@ function buildNextSteps(input: {
   if (steps.length === 0 && matchCount > 0) {
     steps.push({
       id: 'discover',
-      title: `${matchCount} families match your preferences`,
-      description: 'Have a look through and see whose children your children might get on with.',
+      titleKey: 'step.discover.title',
+      titleVars: { n: matchCount },
+      descKey: 'step.discover.desc',
+      ctaKey: 'step.discover.cta',
       href: '/app/discover',
-      cta: 'Discover families',
       tone: 'action',
     });
   }

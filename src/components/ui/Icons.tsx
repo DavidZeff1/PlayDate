@@ -335,3 +335,44 @@ export const IconSliders = (p: IconProps) => (
     <path d="M1.5 13h5M9.5 7h5M17.5 16h5" />
   </Icon>
 );
+
+/* ========================================================================== */
+/* Direction-aware icons                                                       */
+/* ========================================================================== */
+
+/**
+ * Arrows and chevrons point at "forward", which is left in Hebrew and right in English.
+ *
+ * These swap the glyph rather than applying `transform: scaleX(-1)` to the original:
+ * a mirrored transform also mirrors the stroke's optical weighting and, on a button,
+ * shifts the icon within its hit area. Swapping keeps both correct.
+ *
+ * `useDir` is read from the document rather than the i18n context so these stay usable
+ * from anywhere, including outside a provider in tests.
+ */
+function useIsRtl(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.documentElement.getAttribute('dir') === 'rtl';
+}
+
+/** Points in the reading direction — "next", "continue", "go". */
+export const IconArrowForward = (p: IconProps) =>
+  useIsRtl() ? <IconArrowLeft {...p} /> : <IconArrowRight {...p} />;
+
+/** Points against the reading direction — "back", "previous". */
+export const IconArrowBack = (p: IconProps) =>
+  useIsRtl() ? <IconArrowRight {...p} /> : <IconArrowLeft {...p} />;
+
+/** Chevron in the reading direction — list affordances, breadcrumbs. */
+export const IconChevronForward = (p: IconProps) =>
+  useIsRtl() ? <IconChevronLeft {...p} /> : <IconChevronRight {...p} />;
+
+/** Chevron against the reading direction. */
+export const IconChevronBack = (p: IconProps) =>
+  useIsRtl() ? <IconChevronRight {...p} /> : <IconChevronLeft {...p} />;
+
+export const IconArrowLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 12H5M11 6l-6 6 6 6" />
+  </Icon>
+);

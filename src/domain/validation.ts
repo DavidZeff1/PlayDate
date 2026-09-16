@@ -7,13 +7,26 @@
  * once a real backend exists.
  */
 
-export interface ValidationResult {
-  ok: boolean;
-  errors: Record<string, string>;
+import type { TKey } from '../i18n/types';
+
+/**
+ * Validators return a translation KEY (and values where the message is composed),
+ * never an English sentence — the same reason the matching scorers do.
+ */
+export interface ValidationError {
+  key: TKey;
+  vars?: Record<string, string | number>;
 }
 
-export function validate(rules: Array<[string, string | null]>): ValidationResult {
-  const errors: Record<string, string> = {};
+export interface ValidationResult {
+  ok: boolean;
+  errors: Record<string, ValidationError>;
+}
+
+export function validate(
+  rules: Array<[string, ValidationError | null]>,
+): ValidationResult {
+  const errors: Record<string, ValidationError> = {};
   for (const [field, error] of rules) {
     if (error) errors[field] = error;
   }
@@ -28,26 +41,26 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const NON_DIGITS = /[^0-9]/g;
 const TRAILING_SPACE = /\s+$/;
 
-export function validateEmail(value: string): string | null {
+export function validateEmail(value: string): ValidationError | null {
   const v = value.trim();
-  if (!v) return 'Enter your email address';
-  if (v.length > 254) return 'That email address is too long';
-  if (!EMAIL_RE.test(v)) return 'Enter a valid email address';
+  if (!v) return { key: 'val.email.required' };
+  if (v.length > 254) return { key: 'val.email.tooLong' };
+  if (!EMAIL_RE.test(v)) return { key: 'val.email.invalid' };
   return null;
 }
 
-export function validatePhone(value: string): string | null {
+export function validatePhone(value: string): ValidationError | null {
   const digits = value.replace(NON_DIGITS, '');
-  if (!digits) return 'Enter your phone number';
-  if (digits.length < 8) return 'That phone number looks too short';
-  if (digits.length > 15) return 'That phone number looks too long';
+  if (!digits) return { key: 'val.phone.required' };
+  if (digits.length < 8) return { key: 'val.phone.short' };
+  if (digits.length > 15) return { key: 'val.phone.long' };
   return null;
 }
 
 export interface PasswordStrength {
   score: 0 | 1 | 2 | 3 | 4;
-  label: string;
-  suggestions: string[];
+  labelKey: TKey;
+  suggestionKeys: TKey[];
 }
 
 /**
@@ -57,18 +70,14 @@ export interface PasswordStrength {
  * be actively harmful, so length is weighted most heavily here.
  */
 export function passwordStrength(password: string): PasswordStrength {
-  const suggestions: string[] = [];
+  const suggestions: TKey[] = [];
 
   // Length gates everything. Character-class variety barely helps a short password
   // against modern offline cracking, so awarding points for it would let the meter
   // tell someone that `P@ss1!` is as good as a long passphrase — which is false, and
   // is precisely the advice that produced a generation of bad passwords.
   if (password.length < 10) {
-    return {
-      score: 0,
-      label: 'Very weak',
-      suggestions: ['Use at least 12 characters — length matters far more than symbols'],
-    };
+    return { score: 0, labelKey: 'val.strength.0', suggestionKeys: ['val.sugg.length'] };
   }
 
   let score = 0;
@@ -78,63 +87,71 @@ export function passwordStrength(password: string): PasswordStrength {
   else score += 1;
 
   if (password.length < 16) {
-    suggestions.push('A longer passphrase is the single biggest improvement you can make');
+    suggestions.push('val.sugg.longer');
   }
 
   if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
-  else suggestions.push('Mix upper and lower case');
+  else suggestions.push('val.sugg.case');
 
   if (/\d/.test(password) || /[^\w\s]/.test(password)) score += 1;
-  else suggestions.push('Add a number or symbol');
+  else suggestions.push('val.sugg.number');
 
   if (/(.)\1{2,}/.test(password)) {
     score = Math.max(0, score - 1);
-    suggestions.push('Avoid repeated characters');
+    suggestions.push('val.sugg.repeat');
   }
 
   const COMMON = ['password', '123456', 'qwerty', 'letmein', 'playdate', 'welcome', 'iloveyou'];
   if (COMMON.some((c) => password.toLowerCase().includes(c))) {
     score = 0;
     suggestions.length = 0;
-    suggestions.push('This contains a very common password — choose something unrelated');
+    suggestions.push('val.sugg.common');
   }
 
   const clamped = Math.max(0, Math.min(4, score)) as 0 | 1 | 2 | 3 | 4;
-  const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-  return { score: clamped, label: labels[clamped], suggestions };
+  return {
+    score: clamped,
+    labelKey: `val.strength.${clamped}` as TKey,
+    suggestionKeys: suggestions,
+  };
 }
 
-export function validatePassword(value: string): string | null {
-  if (!value) return 'Choose a password';
-  if (value.length < 10) return 'Use at least 10 characters';
-  if (value.length > 200) return 'That password is too long';
+export function validatePassword(value: string): ValidationError | null {
+  if (!value) return { key: 'val.password.required' };
+  if (value.length < 10) return { key: 'val.password.short' };
+  if (value.length > 200) return { key: 'val.password.long' };
   const { score } = passwordStrength(value);
-  if (score < 2) return 'Choose a stronger password';
+  if (score < 2) return { key: 'val.password.weak' };
   return null;
 }
 
-export function validateRequired(value: string, label: string): string | null {
-  return value.trim() ? null : `${label} is required`;
+export function validateRequired(value: string, labelKey: TKey): ValidationError | null {
+  return value.trim() ? null : { key: 'val.field.required', vars: { label: labelKey } };
 }
 
-export function validateLength(value: string, label: string, min: number, max: number): string | null {
+export function validateLength(
+  value: string,
+  labelKey: TKey,
+  min: number,
+  max: number,
+): ValidationError | null {
   const v = value.trim();
-  if (v.length < min) return `${label} must be at least ${min} characters`;
-  if (v.length > max) return `${label} must be under ${max} characters`;
+  if (v.length < min) return { key: 'val.field.min', vars: { label: labelKey, n: min } };
+  if (v.length > max) return { key: 'val.field.max', vars: { label: labelKey, n: max } };
   return null;
 }
 
-export function validateChildAge(age: number): string | null {
-  if (!Number.isFinite(age)) return 'Enter an age';
-  if (age < 1) return 'Enter an age of 1 or above';
-  if (age > 17) return 'PlayDate is for children up to 17';
+export function validateChildAge(age: number): ValidationError | null {
+  if (!Number.isFinite(age)) return { key: 'val.age.required' };
+  if (age < 1) return { key: 'val.age.min' };
+  if (age > 17) return { key: 'val.age.max' };
   return null;
 }
 
-export function validateVerificationCode(value: string): string | null {
+export function validateVerificationCode(value: string): ValidationError | null {
   const v = value.replace(/\s/g, '');
-  if (!v) return 'Enter the 6-digit code';
-  if (!/^\d{6}$/.test(v)) return 'The code is 6 digits';
+  if (!v) return { key: 'val.code.required' };
+  if (!/^\d{6}$/.test(v)) return { key: 'val.code.format' };
   return null;
 }
 

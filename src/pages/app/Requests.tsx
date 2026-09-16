@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type RequestView } from '../../services';
-import { BAND_LABELS } from '../../domain/matching/engine';
+import { BAND_KEYS } from '../../domain/matching/engine';
+import { useI18n, useT } from '../../i18n';
+import { useFormat } from '../../i18n/format';
+import { renderReasons } from '../../i18n/render';
 import {
   Alert,
   Avatar,
@@ -33,6 +36,9 @@ import {
  */
 export function Requests() {
   const toast = useToast();
+  const t = useT();
+  const { locale } = useI18n();
+  const f = useFormat();
   const [tab, setTab] = useState<'incoming' | 'outgoing'>('incoming');
   const [incoming, setIncoming] = useState<RequestView[] | null>(null);
   const [outgoing, setOutgoing] = useState<RequestView[] | null>(null);
@@ -54,15 +60,15 @@ export function Requests() {
       await api.respondToRequest(id, response);
       toast.push(
         response === 'accepted'
-          ? 'Connected. You can now message each other.'
+          ? t('req.accepted')
           : response === 'declined'
-            ? 'Request declined. They are not told why.'
-            : 'Saved for later.',
+            ? t('req.declined')
+            : t('req.deferred'),
         'ok',
       );
       await load();
     } catch (e) {
-      toast.push(e instanceof Error ? e.message : 'Could not respond.', 'error');
+      toast.push(e instanceof Error ? e.message : t('req.couldNotRespond'), 'error');
     }
   };
 
@@ -71,20 +77,19 @@ export function Requests() {
   return (
     <div className="stack stack-6">
       <div className="page-head">
-        <h1>Requests</h1>
+        <h1>{t('nav.requests')}</h1>
         <p>
-          Nobody can message you until you agree to connect. Accepting, declining and leaving
-          it are all equally fine — the other family is never told which you chose.
+          {t('req.sub')}
         </p>
       </div>
 
       <Tabs
-        label="Requests"
+        label={t('nav.requests')}
         value={tab}
         onChange={setTab}
         tabs={[
-          { value: 'incoming', label: 'Received', count: incoming.length },
-          { value: 'outgoing', label: 'Sent', count: outgoing.length },
+          { value: 'incoming', label: t('req.received'), count: incoming.length },
+          { value: 'outgoing', label: t('req.sent'), count: outgoing.length },
         ]}
       />
 
@@ -92,11 +97,11 @@ export function Requests() {
         (incoming.length === 0 ? (
           <EmptyState
             icon={<IconInbox size={22} />}
-            title="No requests waiting"
-            description="When another family would like to connect, their request appears here with the reasons PlayDate suggested you to each other."
+            title={t('req.emptyInTitle')}
+            description={t('req.emptyInDesc')}
             action={
               <Link to="/app/discover" className="btn btn-secondary">
-                Discover families
+                {t('nav.discover')}
               </Link>
             }
           />
@@ -107,7 +112,7 @@ export function Requests() {
                 {view.match && !view.match.excluded && (
                   <div className={`match-banner match-${view.match.band}`}>
                     <IconSparkle size={14} />
-                    {BAND_LABELS[view.match.band]}
+                    {t(BAND_KEYS[view.match.band])}
                   </div>
                 )}
 
@@ -125,7 +130,7 @@ export function Requests() {
                         <VerificationBadge status={view.otherFamily.verificationStatus} />
                         <Badge tone="neutral">
                           <IconClock size={11} />
-                          {timeAgo(view.request.createdAt)}
+                          {f.timeAgo(view.request.createdAt)}
                         </Badge>
                       </div>
                     </div>
@@ -136,7 +141,7 @@ export function Requests() {
                   {view.request.note && (
                     <div className="panel">
                       <div className="tiny muted" style={{ marginBottom: 4 }}>
-                        Their note
+                        {t('req.theirNote')}
                       </div>
                       <p className="small">{view.request.note}</p>
                     </div>
@@ -144,17 +149,18 @@ export function Requests() {
 
                   {view.match && view.match.reasons.length > 0 && (
                     <ul className="reason-list">
-                      {view.match.reasons
-                        .filter((r) => r.tone === 'positive')
-                        .slice(0, 4)
-                        .map((r, i) => (
-                          <li key={i} className="reason reason-positive">
-                            <span className="reason-icon">
-                              <IconCheck size={13} />
-                            </span>
-                            {r.text}
-                          </li>
-                        ))}
+                      {renderReasons(
+                        view.match.reasons.filter((r) => r.tone === 'positive').slice(0, 4),
+                        t,
+                        locale,
+                      ).map((r, i) => (
+                        <li key={i} className="reason reason-positive">
+                          <span className="reason-icon">
+                            <IconCheck size={13} />
+                          </span>
+                          {r.text}
+                        </li>
+                      ))}
                     </ul>
                   )}
 
@@ -176,25 +182,25 @@ export function Requests() {
                       onClick={() => respond(view.request.id, 'accepted')}
                     >
                       <IconCheck size={14} />
-                      Accept
+                      {t('common.accept')}
                     </button>
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => respond(view.request.id, 'declined')}
                     >
                       <IconX size={14} />
-                      Decline
+                      {t('common.decline')}
                     </button>
                     <button
                       className="btn btn-ghost btn-sm"
                       onClick={() => respond(view.request.id, 'deferred')}
                     >
-                      Maybe later
+                      {t('req.maybeLater')}
                     </button>
                     {view.match && (
                       <button className="btn btn-ghost btn-sm" onClick={() => setCompat(view)}>
                         <IconInfo size={14} />
-                        View compatibility
+                        {t('landing.previewCompat')}
                       </button>
                     )}
                     <button
@@ -203,7 +209,7 @@ export function Requests() {
                       onClick={() => setReporting(view)}
                     >
                       <IconFlag size={14} />
-                      Report
+                      {t('common.report')}
                     </button>
                   </div>
                 </div>
@@ -216,11 +222,11 @@ export function Requests() {
         (outgoing.length === 0 ? (
           <EmptyState
             icon={<IconInbox size={22} />}
-            title="No requests sent"
-            description="Requests you send appear here until the other family responds."
+            title={t('req.emptyOutTitle')}
+            description={t('req.emptyOutDesc')}
             action={
               <Link to="/app/discover" className="btn btn-secondary">
-                Discover families
+                {t('nav.discover')}
               </Link>
             }
           />
@@ -239,21 +245,22 @@ export function Requests() {
                     <div>
                       <div className="strong">{view.otherFamily.displayName}</div>
                       <div className="small muted">
-                        Sent {timeAgo(view.request.createdAt)} · {view.otherFamily.locationLabel}
+                        {t('req.sentAgo', { when: f.timeAgo(view.request.createdAt) })} ·{' '}
+                        {f.locationLabel(view.otherFamily.location)}
                       </div>
                     </div>
                   </div>
                   <div className="row row-3">
-                    <Badge tone="pending">Awaiting response</Badge>
+                    <Badge tone="pending">{t('req.awaitingResponse')}</Badge>
                     <button
                       className="btn btn-ghost btn-sm"
                       onClick={async () => {
                         await api.withdrawRequest(view.request.id);
-                        toast.push('Request withdrawn.', 'ok');
+                        toast.push(t('req.withdrawn'), 'ok');
                         await load();
                       }}
                     >
-                      Withdraw
+                      {t('common.withdraw')}
                     </button>
                   </div>
                 </div>
@@ -261,8 +268,7 @@ export function Requests() {
             ))}
 
             <Alert tone="info">
-              We do not show whether the other family has read your request, and you will not
-              be told if they decline. People are allowed to say no quietly.
+              {t('req.noReadReceipts')}
             </Alert>
           </div>
         ))}
@@ -292,14 +298,3 @@ export function Requests() {
   );
 }
 
-export function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}

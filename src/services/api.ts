@@ -99,12 +99,17 @@ export interface DashboardSummary {
   nextSteps: NextStep[];
 }
 
+/**
+ * A dashboard "what can I do now?" item. Keys, not sentences — the same rule the
+ * matching scorers follow, for the same reason.
+ */
 export interface NextStep {
   id: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  titleVars?: Record<string, string | number>;
+  descKey: string;
+  ctaKey: string;
   href: string;
-  cta: string;
   tone: 'action' | 'safety' | 'info';
 }
 
@@ -197,8 +202,13 @@ export interface PlayDateApi {
 
   // -- Discovery ----------------------------------------------------------
   discoverFamilies(filters?: DiscoveryFilters): Promise<DiscoveryResult[]>;
-  /** Families filtered out by a hard constraint, with the reason. Viewer's own view only. */
-  excludedFamilies(): Promise<Array<{ displayName: string; reason: string }>>;
+  /**
+   * Families filtered out by a hard constraint, with the reason as a translation key.
+   * Viewer's own view only — no projection is built for a family they cannot see.
+   */
+  excludedFamilies(): Promise<
+    Array<{ displayName: string; reasonKey: string; reasonVars?: Record<string, string | number> }>
+  >;
   getFamilyProjection(familyId: string): Promise<DiscoveryResult | null>;
   getDashboard(): Promise<DashboardSummary>;
 

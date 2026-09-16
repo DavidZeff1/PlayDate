@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { scanMessage, peakSeverity } from './contentScan';
 import { passwordStrength, sanitiseText, validateEmail, validatePhone } from '../validation';
+import { en } from '../../i18n/dict.en';
 
 describe('message safety scanning', () => {
   it('stays quiet for ordinary messages', () => {
@@ -20,6 +21,24 @@ describe('message safety scanning', () => {
   it('flags a phone number', () => {
     const flags = scanMessage('My number is 054-123-4567 if it is easier.');
     expect(flags.some((f) => f.kind === 'contact_details_shared')).toBe(true);
+  });
+
+  it('emits message keys that exist in the dictionary', () => {
+    // The nudge is shown to the sender, so it has to exist in their language.
+    const samples = [
+      'My number is 054-123-4567',
+      'Write to me at a@b.com',
+      'Shall we move to WhatsApp?',
+      'We are at 14 Herzl Street',
+      "Let's keep this between us",
+      'Just drop them off and go',
+      "Can I message your daughter directly?",
+    ];
+    for (const body of samples) {
+      for (const flag of scanMessage(body)) {
+        expect(en).toHaveProperty(flag.messageKey);
+      }
+    }
   });
 
   it('flags an email address', () => {
@@ -92,6 +111,7 @@ describe('sanitiseText', () => {
 describe('password strength', () => {
   it('rates a long passphrase highly', () => {
     expect(passwordStrength('correct horse battery staple').score).toBeGreaterThanOrEqual(3);
+    expect(en).toHaveProperty(passwordStrength('correct horse battery staple').labelKey);
   });
 
   it('rejects anything containing a very common password', () => {
@@ -114,6 +134,12 @@ describe('contact validation', () => {
     expect(validateEmail('maya@')).not.toBeNull();
     expect(validateEmail('not an email')).not.toBeNull();
     expect(validateEmail('')).not.toBeNull();
+  });
+
+  it('returns translation keys rather than English sentences', () => {
+    const err = validateEmail('not an email');
+    expect(err?.key).toBe('val.email.invalid');
+    expect(en).toHaveProperty(err!.key);
   });
 
   it('accepts phone numbers with common formatting', () => {

@@ -320,7 +320,7 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236f7988' d='M1.4 0 6 4.6 10.6 0 12 1.4 6 7.4 0 1.4z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.8rem center;
-  padding-right: 2.2rem;
+  padding-inline-end: 2.2rem;
 }
 
 .error-text {
@@ -389,7 +389,7 @@
 .switch-thumb {
   position: absolute;
   top: 2px;
-  left: 2px;
+  inset-inline-start: 2px;
   width: 18px;
   height: 18px;
   border-radius: var(--r-full);
@@ -399,7 +399,7 @@
 }
 
 .switch-track[data-on='true'] .switch-thumb {
-  transform: translateX(18px);
+  transform: translateX(calc(18px * var(--dir, 1)));
 }
 
 /* Segmented control — used for privacy levels and filters */
@@ -504,7 +504,7 @@ button.star:hover {
   display: flex;
 }
 .avatar-stack .avatar + .avatar {
-  margin-left: -8px;
+  margin-inline-start: -8px;
   box-shadow: 0 0 0 2px var(--surface);
 }
 
@@ -724,7 +724,7 @@ button.star:hover {
 .toast-region {
   position: fixed;
   bottom: var(--sp-6);
-  right: var(--sp-6);
+  inset-inline-end: var(--sp-6);
   z-index: 80;
   display: flex;
   flex-direction: column;
@@ -791,8 +791,7 @@ button.star:hover {
 
 @media (max-width: 640px) {
   .toast-region {
-    left: var(--sp-4);
-    right: var(--sp-4);
+    inset-inline: var(--sp-4);
     bottom: var(--sp-4);
     max-width: none;
   }

@@ -107,6 +107,38 @@ A "92%" invites a parent to trust an arithmetic artefact over their own reading 
 family. The number exists in the object for ranking and future evaluation; it is never
 the headline.
 
+### 5. The domain emits keys, not sentences
+
+English and Hebrew are both first-class, which forces a rule that is good design anyway:
+**no layer below the UI is allowed to produce a human sentence.**
+
+`matchFamilies()` does not return `"5 shared interests"`. It returns
+
+```ts
+{ source: 'interests', key: 'reason.sharedInterests', vars: { n: 5 }, tone: 'positive' }
+```
+
+and the UI renders it. The same applies to privacy projections — `projectFamily()`
+returns `{ kind: 'distance', bandKey: 'dist.2to4' }`, never `"2–4 km away"` — to
+validation errors, to trust signals, and to the API's suggested next steps.
+
+That is what makes Hebrew possible at all: an API that returned `"Jerusalem area"` would
+only ever work in one language. It also means the language switcher takes effect
+instantly everywhere, with no refetch.
+
+The dictionary is flat and typed. `TKey` is derived from the English dictionary, and
+`dict.he.ts` is declared as `Record<TKey, string>` — so **a missing or misspelled Hebrew
+key is a build error**, not a raw key leaking onto a parent's screen.
+
+Right-to-left is layout, not translation. The stylesheet uses CSS logical properties
+(`margin-inline-start`, `inset-inline-end`, `border-inline-end`, `text-align: start`)
+so the whole app mirrors from one `dir` attribute rather than a parallel RTL
+stylesheet. `rtl.css` handles only what logical properties cannot express: transforms
+(via a `--dir` multiplier), directional icons, Hebrew font stacks, and the numeric or
+`mono` fields — phone, email, IDs — that must stay LTR inside RTL text. Dates, numbers
+and list joins go through `Intl`, so "Saturday" and "2–4 km" are formatted by the
+locale, not by a hardcoded `'en-GB'`.
+
 ---
 
 ## Project layout
@@ -125,6 +157,7 @@ src/
     api.ts           The contract a real backend implements
     security/        Authorization guards, rate limiting
     mock/            localStorage-backed implementation of the contract
+  i18n/            Dictionaries, provider, formatters — English and Hebrew
   state/           Session + own-family only; never caches another family's data
   components/      UI primitives, layout, family/discovery/safety components
   pages/           public · app · admin

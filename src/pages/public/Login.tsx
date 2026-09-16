@@ -4,11 +4,14 @@ import { api } from '../../services';
 import { useApp } from '../../state/AppContext';
 import { Alert, Field, PrototypeNote } from '../../components/ui';
 import { Logo } from '../../components/layout/Logo';
+import { useT } from '../../i18n';
+import { LanguageSwitcher } from '../../components/ui/LanguageSwitcher';
 import { IconEye, IconEyeOff, IconLock } from '../../components/ui/Icons';
 
 export function Login() {
   const navigate = useNavigate();
   const { setSession } = useApp();
+  const t = useT();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -25,7 +28,7 @@ export function Login() {
       navigate('/app');
     } catch (err) {
       // The API returns one message for every credential failure — see mockApi.signIn.
-      setError(err instanceof Error ? err.message : 'Could not sign in.');
+      setError(err instanceof Error ? err.message : t('common.somethingWrong'));
     } finally {
       setBusy(false);
     }
@@ -41,17 +44,18 @@ export function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div style={{ marginBottom: 'var(--sp-6)' }}>
+        <div className="row row-between" style={{ marginBottom: 'var(--sp-6)' }}>
           <Logo />
+          <LanguageSwitcher compact />
         </div>
 
-        <h1 style={{ fontSize: 'var(--text-xl)' }}>Welcome back</h1>
+        <h1 style={{ fontSize: 'var(--text-xl)' }}>{t('login.welcome')}</h1>
         <p className="muted small" style={{ marginTop: 'var(--sp-2)', marginBottom: 'var(--sp-6)' }}>
-          Sign in to your family account.
+          {t('login.sub')}
         </p>
 
         <form onSubmit={submit} className="stack stack-5">
-          <Field label="Email address" htmlFor="login-email">
+          <Field label={t('login.email')} htmlFor="login-email">
             <input
               id="login-email"
               className="input"
@@ -64,7 +68,7 @@ export function Login() {
             />
           </Field>
 
-          <Field label="Password" htmlFor="login-password">
+          <Field label={t('login.password')} htmlFor="login-password">
             <div style={{ position: 'relative' }}>
               <input
                 id="login-password"
@@ -80,7 +84,7 @@ export function Login() {
                 type="button"
                 className="btn-icon"
                 onClick={() => setShow((s) => !s)}
-                aria-label={show ? 'Hide password' : 'Show password'}
+                aria-label={show ? t('login.hidePassword') : t('login.showPassword')}
                 style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)' }}
               >
                 {show ? <IconEyeOff size={16} /> : <IconEye size={16} />}
@@ -91,29 +95,26 @@ export function Login() {
           {error && <Alert tone="danger">{error}</Alert>}
 
           <button className="btn btn-primary btn-block" disabled={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
+            {busy ? t('login.signingIn') : t('login.signIn')}
           </button>
         </form>
 
         <div className="row row-3" style={{ margin: 'var(--sp-6) 0' }}>
           <hr className="divider grow" style={{ margin: 0 }} />
-          <span className="tiny muted">or</span>
+          <span className="tiny muted">{t('common.or')}</span>
           <hr className="divider grow" style={{ margin: 0 }} />
         </div>
 
         <button className="btn btn-secondary btn-block" onClick={demo} disabled={busy}>
-          Explore as the Cohen family
+          {t('login.demo')}
         </button>
 
         <p className="small muted center" style={{ marginTop: 'var(--sp-6)' }}>
-          New here? <Link to="/signup">Create a family account</Link>
+          {t('login.newHere')} <Link to="/signup">{t('login.createLink')}</Link>
         </p>
 
         <div style={{ marginTop: 'var(--sp-6)' }}>
-          <PrototypeNote>
-            No real accounts exist. Use “Explore as the Cohen family” to sign in to the
-            seeded demo family with matches, requests and a confirmed playdate already set up.
-          </PrototypeNote>
+          <PrototypeNote>{t('proto.login')}</PrototypeNote>
         </div>
 
         <div
@@ -121,7 +122,7 @@ export function Login() {
           style={{ marginTop: 'var(--sp-5)', justifyContent: 'center' }}
         >
           <IconLock size={12} />
-          <span>Sign-in attempts are rate-limited to slow credential stuffing.</span>
+          <span>{t('login.rateLimited')}</span>
         </div>
       </div>
     </div>

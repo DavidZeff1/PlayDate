@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { api } from '../../services';
 import { useApp } from '../../state/AppContext';
 import type { Child, ChildInterest, Importance } from '../../domain/types';
-import { validateChildAge, validateLength } from '../../domain/validation';
-import { IMPORTANCE_LABELS, interestEmoji, interestLabel } from '../../domain/interests';
+import { validateChildAge, validateLength, type ValidationError } from '../../domain/validation';
+import { importanceLabels, interestEmoji, interestLabel } from '../../domain/interests';
+import { useT } from '../../i18n';
+import { useFormat } from '../../i18n/format';
 import {
   Alert,
   Avatar,
@@ -20,6 +22,7 @@ import { IconChildren, IconEdit, IconPlus, IconTrash } from '../../components/ui
 export function MyChildren() {
   const { family, refresh } = useApp();
   const toast = useToast();
+  const t = useT();
   const [editing, setEditing] = useState<Child | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Child | null>(null);
 
@@ -29,27 +32,24 @@ export function MyChildren() {
     <div className="stack stack-6">
       <div className="row row-between row-4" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="page-head" style={{ marginBottom: 0 }}>
-          <h1>My children</h1>
-          <p>
-            Your children are dependents on your family profile. They have no accounts, no
-            inbox, and no way to be contacted by anyone.
-          </p>
+          <h1>{t('kids.h1')}</h1>
+          <p>{t('kids.sub')}</p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setEditing('new')}>
           <IconPlus size={15} />
-          Add a child
+          {t('kids.addChild')}
         </button>
       </div>
 
       {family.children.length === 0 ? (
         <EmptyState
           icon={<IconChildren size={22} />}
-          title="No children added yet"
-          description="Matching works from ages and interests, so adding at least one child is what makes discovery useful."
+          title={t('kids.emptyTitle')}
+          description={t('kids.emptyDesc')}
           action={
             <button className="btn btn-primary" onClick={() => setEditing('new')}>
               <IconPlus size={16} />
-              Add your first child
+              {t('kids.addFirst')}
             </button>
           }
         />
@@ -66,7 +66,7 @@ export function MyChildren() {
                       {child.nickname && <span className="muted"> ({child.nickname})</span>}
                     </div>
                     <div className="small muted">
-                      {child.age} years old
+                      {t('common.yearsOld', { n: child.age })}
                       {child.pronouns && ` · ${child.pronouns}`}
                     </div>
                   </div>
@@ -74,12 +74,12 @@ export function MyChildren() {
                 <div className="row row-2">
                   <button className="btn btn-secondary btn-sm" onClick={() => setEditing(child)}>
                     <IconEdit size={14} />
-                    Edit
+                    {t('common.edit')}
                   </button>
                   <button
                     className="btn-icon"
                     onClick={() => setDeleting(child)}
-                    aria-label={`Remove ${child.firstName}`}
+                    aria-label={t('kids.removeAria', { name: child.firstName })}
                   >
                     <IconTrash size={16} />
                   </button>
@@ -89,12 +89,12 @@ export function MyChildren() {
               <div className="card-body stack stack-5">
                 {child.interests.length === 0 ? (
                   <p className="small muted">
-                    No interests yet. Three or more makes a noticeable difference to matching.
+                    {t('kids.noInterests')}
                   </p>
                 ) : (
                   <div>
                     <div className="small strong" style={{ marginBottom: 'var(--sp-3)' }}>
-                      Interests
+                      {t('kids.interests')}
                     </div>
                     <div className="stack stack-2">
                       {[...child.interests]
@@ -115,12 +115,12 @@ export function MyChildren() {
                     }}
                   >
                     <div>
-                      <div className="tiny muted">Energy level</div>
-                      <Stars value={child.temperament.energy} size="sm" label="Energy" />
+                      <div className="tiny muted">{t('ob.kids.energy')}</div>
+                      <Stars value={child.temperament.energy} size="sm" label={t('ob.kids.energy')} />
                     </div>
                     <div>
-                      <div className="tiny muted">With new children</div>
-                      <Stars value={child.temperament.sociability} size="sm" label="Sociability" />
+                      <div className="tiny muted">{t('ob.kids.social')}</div>
+                      <Stars value={child.temperament.sociability} size="sm" label={t('ob.kids.social')} />
                     </div>
                   </div>
                 )}
@@ -128,7 +128,7 @@ export function MyChildren() {
                 {child.notes && (
                   <div className="panel">
                     <div className="tiny muted" style={{ marginBottom: 2 }}>
-                      Note for other parents — only visible after you connect
+                      {t('kids.noteHeader')}
                     </div>
                     <p className="small">{child.notes}</p>
                   </div>
@@ -139,10 +139,8 @@ export function MyChildren() {
         </div>
       )}
 
-      <Alert tone="info" title="What other families can see about your children">
-        Their chosen name (first name, a nickname, or nothing), age or age band, and interests.
-        Never a surname, a date of birth, a school, or a photo unless you explicitly turn photos
-        on. Your notes are withheld until you connect.
+      <Alert tone="info" title={t('kids.whatOthersSee')}>
+        {t('kids.whatOthersSeeBody')}
       </Alert>
 
       {editing && (
@@ -152,7 +150,7 @@ export function MyChildren() {
           onSaved={async () => {
             setEditing(null);
             await refresh();
-            toast.push('Saved.', 'ok');
+            toast.push(t('kids.saved'), 'ok');
           }}
         />
       )}
@@ -161,11 +159,11 @@ export function MyChildren() {
         <Modal
           open
           onClose={() => setDeleting(null)}
-          title={`Remove ${deleting.firstName}?`}
+          title={t('kids.removeTitle', { name: deleting.firstName })}
           footer={
             <>
               <button className="btn btn-secondary" onClick={() => setDeleting(null)}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="btn btn-danger"
@@ -173,18 +171,15 @@ export function MyChildren() {
                   await api.removeChild(deleting.id);
                   setDeleting(null);
                   await refresh();
-                  toast.push('Child removed.', 'ok');
+                  toast.push(t('kids.removed'), 'ok');
                 }}
               >
-                Remove
+                {t('common.remove')}
               </button>
             </>
           }
         >
-          <p>
-            This removes {deleting.firstName} from your family profile, along with their
-            interests. Your matches will change accordingly. This cannot be undone.
-          </p>
+          <p>{t('kids.removeBody', { name: deleting.firstName })}</p>
         </Modal>
       )}
     </div>
@@ -192,21 +187,23 @@ export function MyChildren() {
 }
 
 function InterestRow({ interest }: { interest: ChildInterest }) {
+  const t = useT();
+  const impLabels = importanceLabels(t);
   return (
     <div className="row row-between row-3" style={{ flexWrap: 'wrap' }}>
       <span className="small row row-2">
         <span aria-hidden="true">{interestEmoji(interest.interestId)}</span>
-        {interestLabel(interest.interestId)}
+        {interestLabel(interest.interestId, t)}
       </span>
       <span className="row row-4 row-wrap">
         <span className="row row-2">
-          <span className="tiny muted">Enjoys</span>
+          <span className="tiny muted">{t('kids.enjoys')}</span>
           <Stars value={interest.enthusiasm} size="readonly" label="Enjoyment" />
         </span>
         <span className="row row-2">
-          <span className="tiny muted">Matters</span>
+          <span className="tiny muted">{t('kids.matters')}</span>
           <Stars value={interest.importance} size="readonly" label="Matching importance" />
-          <span className="tiny muted">{IMPORTANCE_LABELS[interest.importance]}</span>
+          <span className="tiny muted">{impLabels[interest.importance]}</span>
         </span>
       </span>
     </div>
@@ -234,13 +231,15 @@ function ChildModal({
   const [energy, setEnergy] = useState<Importance>(child?.temperament?.energy ?? 3);
   const [sociability, setSociability] = useState<Importance>(child?.temperament?.sociability ?? 3);
   const [interests, setInterests] = useState<ChildInterest[]>(child?.interests ?? []);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, ValidationError>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
+  const f = useFormat();
 
   const save = async () => {
-    const errs: Record<string, string> = {};
-    const e1 = validateLength(firstName, 'First name', 1, 40);
+    const errs: Record<string, ValidationError> = {};
+    const e1 = validateLength(firstName, 'val.firstName', 1, 40);
     const e2 = validateChildAge(Number(age));
     if (e1) errs.firstName = e1;
     if (e2) errs.age = e2;
@@ -274,8 +273,8 @@ function ChildModal({
       open
       onClose={onClose}
       wide
-      title={child ? `Edit ${child.firstName}` : 'Add a child'}
-      description="We ask for an age in years, never a date of birth."
+      title={child ? t('kids.editTitle', { name: child.firstName }) : t('kids.addTitle')}
+      description={t('kids.modalSub')}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose} disabled={busy}>
@@ -295,7 +294,7 @@ function ChildModal({
             gap: 'var(--sp-4)',
           }}
         >
-          <Field label="First name" htmlFor="cm-first" error={errors.firstName}>
+          <Field label={t('kids.firstName' as never)} htmlFor="cm-first" error={f.errorText(errors.firstName)}>
             <input
               id="cm-first"
               className="input"
@@ -305,14 +304,14 @@ function ChildModal({
             />
           </Field>
           <Field
-            label="Nickname"
+            label={t('ob.kids.nickname')}
             htmlFor="cm-nick"
             optional
-            hint="Used if you choose nickname disclosure."
+            hint={t('kids.nicknameHint')}
           >
             <input id="cm-nick" className="input" value={nickname} onChange={(e) => setNickname(e.target.value)} />
           </Field>
-          <Field label="Age" htmlFor="cm-age" error={errors.age}>
+          <Field label={t('ob.kids.age')} htmlFor="cm-age" error={f.errorText(errors.age)}>
             <input
               id="cm-age"
               className="input"
@@ -331,31 +330,31 @@ function ChildModal({
 
         <div>
           <div className="label" style={{ marginBottom: 'var(--sp-3)' }}>
-            How do they play?
+            {t('ob.kids.howPlay')}
           </div>
           <div className="stack stack-3">
             <div className="row row-between row-4">
               <div>
-                <div className="small strong">Energy level</div>
-                <div className="tiny muted">Quiet one-on-one play → boisterous group play</div>
+                <div className="small strong">{t('ob.kids.energy')}</div>
+                <div className="tiny muted">{t('ob.kids.energyHint')}</div>
               </div>
-              <Stars value={energy} onChange={setEnergy} label="Energy level" />
+              <Stars value={energy} onChange={setEnergy} label={t('ob.kids.energy')} />
             </div>
             <div className="row row-between row-4">
               <div>
-                <div className="small strong">With new children</div>
-                <div className="tiny muted">Needs warming up → jumps straight in</div>
+                <div className="small strong">{t('ob.kids.social')}</div>
+                <div className="tiny muted">{t('ob.kids.socialHint')}</div>
               </div>
-              <Stars value={sociability} onChange={setSociability} label="Sociability" />
+              <Stars value={sociability} onChange={setSociability} label={t('ob.kids.social')} />
             </div>
           </div>
         </div>
 
         <Field
-          label="Anything helpful for another parent to know"
+          label={t('ob.kids.notes')}
           htmlFor="cm-notes"
           optional
-          hint="Only shown to families you have connected with."
+          hint={t('ob.kids.notesHint')}
         >
           <textarea
             id="cm-notes"
@@ -370,11 +369,10 @@ function ChildModal({
 
         <div>
           <div className="label" style={{ marginBottom: 'var(--sp-1)' }}>
-            Interests
+            {t('kids.interests')}
           </div>
           <p className="hint" style={{ marginBottom: 'var(--sp-4)' }}>
-            Two ratings per interest: how much your child enjoys it (other families see this),
-            and how much it should count when matching (private to you).
+            {t('kids.interestsHint')}
           </p>
           <InterestEditor value={interests} onChange={setInterests} />
         </div>

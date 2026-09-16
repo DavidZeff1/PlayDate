@@ -1,4 +1,5 @@
 import type { SafetyFlag } from '../types';
+import type { TKey } from '../../i18n/types';
 
 /**
  * Lightweight, advisory safety scanning for parent-to-parent messages.
@@ -25,7 +26,7 @@ interface Rule {
   kind: SafetyFlag['kind'];
   severity: SafetyFlag['severity'];
   test: RegExp;
-  message: string;
+  messageKey: TKey;
 }
 
 const RULES: Rule[] = [
@@ -34,50 +35,43 @@ const RULES: Rule[] = [
     severity: 'caution',
     // Loose phone-number shape: 9+ digits with common separators.
     test: /(?:\+?\d[\d\s\-().]{8,}\d)/,
-    message:
-      'This looks like a phone number. Keeping conversations on PlayDate means reports and blocking still work if something goes wrong.',
+    messageKey: 'scan.phone',
   },
   {
     kind: 'contact_details_shared',
     severity: 'caution',
     test: /[\w.+-]+@[\w-]+\.[\w.]{2,}/,
-    message:
-      'This looks like an email address. You can share contact details later — there is no rush before you have met.',
+    messageKey: 'scan.email',
   },
   {
     kind: 'off_platform_move',
     severity: 'caution',
     test: /\b(whats\s?app|telegram|signal|snapchat|instagram|insta|tiktok|facebook|messenger|discord)\b/i,
-    message:
-      'Moving to another app early is common, but it means PlayDate can no longer help if there is a problem. Consider staying here until after you have met.',
+    messageKey: 'scan.offPlatform',
   },
   {
     kind: 'address_shared',
     severity: 'high',
     test: /\b\d{1,4}\s+[A-Za-z][A-Za-z'.-]*\s+(street|st|road|rd|avenue|ave|lane|ln|drive|dr|boulevard|blvd|way|derech|rehov)\b/i,
-    message:
-      'This looks like a street address. We suggest not sharing your home address before a first meeting in a public place.',
+    messageKey: 'scan.address',
   },
   {
     kind: 'unsupervised_suggestion',
     severity: 'high',
     test: /\b(drop\s?(them|him|her|the kids?)?\s?off\s+and\s+(go|leave)|leave\s+(them|him|her|the kids?)\s+with\s+me|no\s+need\s+for\s+you\s+to\s+(come|stay)|you\s+don'?t\s+need\s+to\s+stay)\b/i,
-    message:
-      'For a first meeting, we recommend both parents stay for the whole visit.',
+    messageKey: 'scan.unsupervised',
   },
   {
     kind: 'pressure_language',
     severity: 'high',
     test: /\b(don'?t\s+tell|keep\s+(this|it)\s+(a\s+)?secret|between\s+us|our\s+little\s+secret|delete\s+(this|these)\s+messages?)\b/i,
-    message:
-      'Requests for secrecy are a recognised warning sign. If this message made you uncomfortable, you can report it — reports are reviewed by our safety team.',
+    messageKey: 'scan.secrecy',
   },
   {
     kind: 'child_direct_contact',
     severity: 'high',
     test: /\b(give\s+me\s+(your\s+)?(child|kid|son|daughter)'?s?\s+(number|phone|email|username|account)|can\s+I\s+(message|text|call|add)\s+(your\s+)?(child|kid|son|daughter)|(child|kid|son|daughter)'?s?\s+own\s+(phone|account|number))\b/i,
-    message:
-      'PlayDate does not support contacting another family\'s child directly, and asking for a child\'s contact details is against our safety rules. Please report this if it concerns you.',
+    messageKey: 'scan.childContact',
   },
 ];
 
@@ -94,7 +88,7 @@ export function scanMessage(body: string): SafetyFlag[] {
       const key = `${rule.kind}:${rule.severity}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      flags.push({ kind: rule.kind, severity: rule.severity, message: rule.message });
+      flags.push({ kind: rule.kind, severity: rule.severity, messageKey: rule.messageKey });
     }
   }
 
@@ -109,72 +103,33 @@ export function peakSeverity(flags: SafetyFlag[]): SafetyFlag['severity'] | null
   return null;
 }
 
-export const SAFETY_TIPS = [
-  {
-    title: 'Meet in a public place first',
-    body: 'Playgrounds, parks and community centres let children play freely while both parents are present and comfortable.',
-  },
-  {
-    title: 'Both parents stay for the first visit',
-    body: 'A first playdate is as much about the parents meeting as the children. Drop-offs can come later, once you know each other.',
-  },
-  {
-    title: 'Tell someone else your plan',
-    body: 'Share the time and place with another adult you trust. PlayDate can do this for you when you confirm a playdate.',
-  },
-  {
-    title: 'Keep conversations on PlayDate',
-    body: 'If a conversation moves to another app, reporting and blocking no longer protect you. There is no hurry to swap numbers.',
-  },
-  {
-    title: 'You never owe anyone an explanation',
-    body: 'Decline, leave a conversation, or block at any time. The other family is not told why, and declining is never held against you.',
-  },
-  {
-    title: 'Trust your instinct, then tell us',
-    body: 'If something feels wrong — pressure, secrecy, too much interest in your child specifically — report it. Reports are reviewed by people, not bots.',
-  },
+/** Safety guidance, as key pairs. The UI renders `t(titleKey)` / `t(bodyKey)`. */
+export const SAFETY_TIPS: Array<{ titleKey: TKey; bodyKey: TKey }> = [
+  { titleKey: 'tip.public.title', bodyKey: 'tip.public.body' },
+  { titleKey: 'tip.stay.title', bodyKey: 'tip.stay.body' },
+  { titleKey: 'tip.tell.title', bodyKey: 'tip.tell.body' },
+  { titleKey: 'tip.onPlatform.title', bodyKey: 'tip.onPlatform.body' },
+  { titleKey: 'tip.noExplanation.title', bodyKey: 'tip.noExplanation.body' },
+  { titleKey: 'tip.instinct.title', bodyKey: 'tip.instinct.body' },
 ];
 
-export const REPORT_REASON_COPY: Record<
-  string,
-  { label: string; description: string; urgent?: boolean }
-> = {
-  child_safety_urgent: {
-    label: 'Immediate concern for a child',
-    description: 'Something that needs urgent review. Prioritised ahead of everything else.',
-    urgent: true,
-  },
-  suspicious_behavior: {
-    label: 'Suspicious behaviour',
-    description: 'Pressure, secrecy, unusual interest in a child, or attempts to arrange unsupervised contact.',
-  },
-  fake_identity: {
-    label: 'Fake or misleading identity',
-    description: 'You believe this person is not who they say they are.',
-  },
-  harassment: {
-    label: 'Harassment',
-    description: 'Repeated unwanted contact, hostility, or intimidation.',
-  },
-  inappropriate_messages: {
-    label: 'Inappropriate messages',
-    description: 'Sexual, violent, or otherwise inappropriate content in a conversation.',
-  },
-  misrepresentation: {
-    label: 'Profile misrepresentation',
-    description: 'Their family profile does not reflect reality — wrong ages, invented children, misleading details.',
-  },
-  unwanted_contact: {
-    label: 'Unwanted contact',
-    description: 'They keep contacting you after you declined or left the conversation.',
-  },
-  safety_concern: {
-    label: 'Other safety concern',
-    description: 'Something that worried you during or after a playdate.',
-  },
-  inappropriate_content: {
-    label: 'Inappropriate content',
-    description: 'Photos, profile text, or other content that should not be on PlayDate.',
-  },
-};
+/** Report reasons, ordered by how we want them presented. Urgent first. */
+export const REPORT_REASONS: Array<{ id: string; urgent?: boolean }> = [
+  { id: 'child_safety_urgent', urgent: true },
+  { id: 'suspicious_behavior' },
+  { id: 'fake_identity' },
+  { id: 'harassment' },
+  { id: 'inappropriate_messages' },
+  { id: 'misrepresentation' },
+  { id: 'unwanted_contact' },
+  { id: 'inappropriate_content' },
+  { id: 'safety_concern' },
+];
+
+export function reportLabelKey(reason: string): TKey {
+  return `report.${reason}.label` as TKey;
+}
+
+export function reportDescKey(reason: string): TKey {
+  return `report.${reason}.desc` as TKey;
+}

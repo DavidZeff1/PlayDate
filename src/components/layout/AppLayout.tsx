@@ -4,6 +4,9 @@ import { Logo } from './Logo';
 import { useApp } from '../../state/AppContext';
 import { api } from '../../services';
 import { Avatar, LoadingBlock } from '../ui';
+import { LanguageSwitcher } from '../ui/LanguageSwitcher';
+import { useT } from '../../i18n';
+import type { TKey } from '../../i18n/types';
 import {
   IconBell,
   IconCalendar,
@@ -31,6 +34,7 @@ interface Counts {
 
 export function AppLayout() {
   const { session, family, loading, signOut } = useApp();
+  const t = useT();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -70,7 +74,7 @@ export function AppLayout() {
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-        <LoadingBlock label="Loading your family…" />
+        <LoadingBlock label={t('nav.loadingFamily')} />
       </div>
     );
   }
@@ -83,24 +87,25 @@ export function AppLayout() {
     return null;
   }
 
-  const title = TITLES[location.pathname] ?? 'PlayDate';
+  const titleKey = TITLE_KEYS[location.pathname];
+  const title = titleKey ? t(titleKey) : 'PlayDate';
 
   return (
     <div className="app-shell">
       <a className="skip-link" href="#app-main">
-        Skip to content
+        {t('nav.skipToContent')}
       </a>
 
       {open && <div className="sidebar-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
 
-      <aside className="sidebar" data-open={open} aria-label="Main navigation">
+      <aside className="sidebar" data-open={open} aria-label={t('nav.main')}>
         <div className="sidebar-head">
           <div className="row row-between">
             <Logo to="/app" />
             <button
               className="btn-icon mobile-nav-toggle"
               onClick={() => setOpen(false)}
-              aria-label="Close navigation"
+              aria-label={t('nav.closeNav')}
             >
               <IconX size={18} />
             </button>
@@ -117,8 +122,9 @@ export function AppLayout() {
                   {family.displayName}
                 </div>
                 <div className="tiny muted">
-                  {family.children.length} {family.children.length === 1 ? 'child' : 'children'}
-                  {family.verificationStatus === 'verified' && ' · Verified'}
+                  {family.children.length}{' '}
+                  {family.children.length === 1 ? t('common.child') : t('common.children')}
+                  {family.verificationStatus === 'verified' && ` · ${t('set.verified')}`}
                 </div>
               </div>
             </Link>
@@ -126,52 +132,53 @@ export function AppLayout() {
         </div>
 
         <nav className="sidebar-nav">
-          <NavItem to="/app" end icon={<IconHome size={17} />} label="Dashboard" />
+          <NavItem to="/app" end icon={<IconHome size={17} />} label={t('nav.dashboard')} />
 
-          <div className="nav-section-label">Your family</div>
-          <NavItem to="/app/family" icon={<IconFamily size={17} />} label="My family" />
-          <NavItem to="/app/children" icon={<IconChildren size={17} />} label="My children" />
+          <div className="nav-section-label">{t('nav.yourFamily')}</div>
+          <NavItem to="/app/family" icon={<IconFamily size={17} />} label={t('nav.myFamily')} />
+          <NavItem to="/app/children" icon={<IconChildren size={17} />} label={t('nav.myChildren')} />
 
-          <div className="nav-section-label">Connect</div>
-          <NavItem to="/app/discover" icon={<IconCompass size={17} />} label="Discover families" />
-          <NavItem to="/app/matches" icon={<IconSparkle size={17} />} label="Matches" />
+          <div className="nav-section-label">{t('nav.connect')}</div>
+          <NavItem to="/app/discover" icon={<IconCompass size={17} />} label={t('nav.discover')} />
+          <NavItem to="/app/matches" icon={<IconSparkle size={17} />} label={t('nav.matches')} />
           <NavItem
             to="/app/requests"
             icon={<IconInbox size={17} />}
-            label="Requests"
+            label={t('nav.requests')}
             count={counts.requests}
           />
           <NavItem
             to="/app/messages"
             icon={<IconMessage size={17} />}
-            label="Messages"
+            label={t('nav.messages')}
             count={counts.messages}
           />
           <NavItem
             to="/app/playdates"
             icon={<IconCalendar size={17} />}
-            label="PlayDates"
+            label={t('nav.playdates')}
             count={counts.playdates}
             quiet
           />
 
-          <div className="nav-section-label">Account</div>
+          <div className="nav-section-label">{t('nav.account')}</div>
           <NavItem
             to="/app/notifications"
             icon={<IconBell size={17} />}
-            label="Notifications"
+            label={t('nav.notifications')}
             count={counts.notifications}
             quiet
           />
-          <NavItem to="/app/verification" icon={<IconShieldCheck size={17} />} label="Verification" />
-          <NavItem to="/app/safety" icon={<IconShieldCheck size={17} />} label="Safety Centre" />
-          <NavItem to="/app/settings" icon={<IconSettings size={17} />} label="Settings" />
+          <NavItem to="/app/verification" icon={<IconShieldCheck size={17} />} label={t('nav.verification')} />
+          <NavItem to="/app/safety" icon={<IconShieldCheck size={17} />} label={t('nav.safetyCentre')} />
+          <NavItem to="/app/settings" icon={<IconSettings size={17} />} label={t('nav.settings')} />
 
-          <div className="nav-section-label">Staff tools</div>
-          <NavItem to="/admin" icon={<IconGavel size={17} />} label="Moderation (demo)" />
+          <div className="nav-section-label">{t('nav.staffTools')}</div>
+          <NavItem to="/admin" icon={<IconGavel size={17} />} label={t('nav.moderation')} />
         </nav>
 
-        <div className="sidebar-foot">
+        <div className="sidebar-foot stack stack-3">
+          <LanguageSwitcher compact />
           <button
             className="btn btn-ghost btn-sm btn-block"
             style={{ justifyContent: 'flex-start' }}
@@ -181,7 +188,7 @@ export function AppLayout() {
             }}
           >
             <IconLogout size={16} />
-            Sign out
+            {t('nav.signOut')}
           </button>
         </div>
       </aside>
@@ -192,7 +199,7 @@ export function AppLayout() {
             <button
               className="btn-icon mobile-nav-toggle"
               onClick={() => setOpen(true)}
-              aria-label="Open navigation"
+              aria-label={t('nav.openNav')}
               aria-expanded={open}
             >
               <IconMenu size={20} />
@@ -201,7 +208,12 @@ export function AppLayout() {
           </div>
 
           <div className="row row-2">
-            <Link to="/app/notifications" className="btn-icon" aria-label="Notifications" style={{ position: 'relative' }}>
+            <Link
+              to="/app/notifications"
+              className="btn-icon"
+              aria-label={t('nav.notifications')}
+              style={{ position: 'relative' }}
+            >
               <IconBell size={19} />
               {counts.notifications > 0 && (
                 <span
@@ -209,7 +221,7 @@ export function AppLayout() {
                   style={{
                     position: 'absolute',
                     top: 5,
-                    right: 5,
+                    insetInlineEnd: 5,
                     width: 7,
                     height: 7,
                     borderRadius: 999,
@@ -219,7 +231,9 @@ export function AppLayout() {
                 />
               )}
               {counts.notifications > 0 && (
-                <span className="sr-only">{counts.notifications} unread notifications</span>
+                <span className="sr-only">
+                  {t('nav.unreadNotifications', { n: counts.notifications })}
+                </span>
               )}
             </Link>
           </div>
@@ -259,17 +273,17 @@ function NavItem({
   );
 }
 
-const TITLES: Record<string, string> = {
-  '/app': 'Dashboard',
-  '/app/family': 'My family',
-  '/app/children': 'My children',
-  '/app/discover': 'Discover families',
-  '/app/matches': 'Matches',
-  '/app/requests': 'Requests',
-  '/app/messages': 'Messages',
-  '/app/playdates': 'PlayDates',
-  '/app/notifications': 'Notifications',
-  '/app/verification': 'Verification',
-  '/app/safety': 'Safety Centre',
-  '/app/settings': 'Settings',
+const TITLE_KEYS: Record<string, TKey> = {
+  '/app': 'nav.dashboard',
+  '/app/family': 'nav.myFamily',
+  '/app/children': 'nav.myChildren',
+  '/app/discover': 'nav.discover',
+  '/app/matches': 'nav.matches',
+  '/app/requests': 'nav.requests',
+  '/app/messages': 'nav.messages',
+  '/app/playdates': 'nav.playdates',
+  '/app/notifications': 'nav.notifications',
+  '/app/verification': 'nav.verification',
+  '/app/safety': 'nav.safetyCentre',
+  '/app/settings': 'nav.settings',
 };

@@ -1,5 +1,6 @@
 import type { Family } from '../types';
-import { DEFAULT_SCORERS, childInterestAffinity, distanceBand } from './scorers';
+import { DEFAULT_SCORERS, childInterestAffinity, distanceBandKey } from './scorers';
+import type { TKey, TVars } from '../../i18n/types';
 import type {
   MatchBand,
   MatchContext,
@@ -36,11 +37,12 @@ function bandFor(score: number): MatchBand {
   return 'weak';
 }
 
-export const BAND_LABELS: Record<MatchBand, string> = {
-  strong: 'Strong potential match',
-  good: 'Good potential match',
-  possible: 'Possible match',
-  weak: 'Limited overlap',
+/** Band labels as translation keys. The UI renders `t(BAND_KEYS[band])`. */
+export const BAND_KEYS: Record<MatchBand, TKey> = {
+  strong: 'band.strong',
+  good: 'band.good',
+  possible: 'band.possible',
+  weak: 'band.weak',
 };
 
 /**
@@ -91,43 +93,35 @@ export function matchFamilies(
     ctx.blockedFamilyIds?.has(candidate.id) === true;
 
   if (blocked) {
-    return {
-      candidateFamilyId: candidate.id,
-      score: 0,
-      band: 'weak',
-      excluded: true,
-      exclusionReason: 'Blocked',
-      reasons: [],
-      breakdown: [],
-      pairings: [],
-      sharedInterestIds: [],
-    };
+    return excluded(candidate.id, 'exclude.blocked');
   }
 
   // A family that isn't discoverable, isn't in good standing, or has no children is not
   // a candidate at all. Checked here as well as in the service layer.
   if (!candidate.privacy.discoverable) {
-    return excluded(candidate.id, 'This family is not currently discoverable');
+    return excluded(candidate.id, 'exclude.notDiscoverable');
   }
   if (candidate.accountState !== 'active') {
-    return excluded(candidate.id, 'This family is not currently available');
+    return excluded(candidate.id, 'exclude.notAvailable');
   }
   if (candidate.children.length === 0) {
-    return excluded(candidate.id, 'No children on this family profile');
+    return excluded(candidate.id, 'exclude.noChildrenOnProfile');
   }
 
   const breakdown: ScorerBreakdown[] = [];
   const reasons: MatchReason[] = [];
   let weightedTotal = 0;
   let weightSum = 0;
-  let blockingReason: string | undefined;
+  let blockingKey: TKey | undefined;
+  let blockingVars: TVars | undefined;
 
   for (const scorer of scorers) {
     const out = scorer.score(viewer, candidate, ctx);
     const weight = viewer.preferences.weights[scorer.weightKey];
 
     if (out.blocking) {
-      blockingReason = out.blockingReason ?? `${scorer.label} constraint not met`;
+      blockingKey = out.blockingKey ?? 'exclude.notAvailable';
+      blockingVars = out.blockingVars;
       break;
     }
 
@@ -148,8 +142,8 @@ export function matchFamilies(
     reasons.push(...out.reasons);
   }
 
-  if (blockingReason) {
-    return excluded(candidate.id, blockingReason);
+  if (blockingKey) {
+    return excluded(candidate.id, blockingKey, blockingVars);
   }
 
   const score = weightSum === 0 ? 0 : weightedTotal / weightSum;
@@ -179,13 +173,14 @@ export function matchFamilies(
   };
 }
 
-function excluded(candidateFamilyId: string, reason: string): MatchResult {
+function excluded(candidateFamilyId: string, key: TKey, vars?: TVars): MatchResult {
   return {
     candidateFamilyId,
     score: 0,
     band: 'weak',
     excluded: true,
-    exclusionReason: reason,
+    exclusionKey: key,
+    exclusionVars: vars,
     reasons: [],
     breakdown: [],
     pairings: [],
@@ -235,5 +230,5 @@ export function rankFamilies(
   return out.sort((a, b) => b.result.score - a.result.score);
 }
 
-export { distanceBand };
+export { distanceBandKey };
 export type { MatchResult, MatchReason, MatchContext, MatchBand, ScorerBreakdown, ChildPairing };

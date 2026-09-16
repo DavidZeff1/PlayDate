@@ -2,8 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type DiscoveryResult } from '../../services';
 import { useApp } from '../../state/AppContext';
-import { BAND_LABELS } from '../../domain/matching/engine';
-import { SAFETY_TIPS, REPORT_REASON_COPY } from '../../domain/safety/contentScan';
+import { BAND_KEYS } from '../../domain/matching/engine';
+import { useI18n, useT } from '../../i18n';
+import { useFormat } from '../../i18n/format';
+import {
+  SAFETY_TIPS,
+  REPORT_REASONS,
+  reportDescKey,
+  reportLabelKey,
+} from '../../domain/safety/contentScan';
 import type { AppNotification, Report } from '../../domain/types';
 import {
   Alert,
@@ -16,7 +23,6 @@ import {
 } from '../../components/ui';
 import { FamilyCard } from '../../components/discovery/FamilyCard';
 import { RequestModal } from './Discover';
-import { timeAgo } from './Requests';
 import {
   IconBell,
   IconBlock,
@@ -36,6 +42,7 @@ import {
 export function Matches() {
   const { canDiscover } = useApp();
   const toast = useToast();
+  const t = useT();
   const [results, setResults] = useState<DiscoveryResult[] | null>(null);
   const [requestTarget, setRequestTarget] = useState<DiscoveryResult | null>(null);
 
@@ -59,17 +66,17 @@ export function Matches() {
     return (
       <div className="stack stack-6">
         <div className="page-head">
-          <h1>Matches</h1>
+          <h1>{t('nav.matches')}</h1>
         </div>
-        <Alert tone="warn" title="Verification needed">
+        <Alert tone="warn" title={t('match.gateTitle')}>
           Matching results open once your identity verification is complete.{' '}
-          <Link to="/app/verification">Go to verification</Link>.
+          <Link to="/app/verification">{t('disc.gateCta')}</Link>.
         </Alert>
       </div>
     );
   }
 
-  if (results === null) return <LoadingBlock label="Working out your matches…" />;
+  if (results === null) return <LoadingBlock label={t('match.working')} />;
 
   const strong = results.filter((r) => r.match.band === 'strong');
   const good = results.filter((r) => r.match.band === 'good');
@@ -78,42 +85,40 @@ export function Matches() {
   return (
     <div className="stack stack-8">
       <div className="page-head">
-        <h1>Matches</h1>
+        <h1>{t('nav.matches')}</h1>
         <p>
-          Your discovery pool, grouped by how well it fits the priorities you set. There is no
-          single "best" family here — the point is a large, carefully filtered set you can
-          judge for yourself.
+          {t('match.sub')}
         </p>
       </div>
 
       {results.length === 0 ? (
         <EmptyState
           icon={<IconSparkle size={22} />}
-          title="No matches yet"
-          description="Widening your travel distance or acceptable age gap in Settings is usually the quickest fix."
+          title={t('match.emptyTitle')}
+          description={t('match.emptyDesc')}
           action={
             <Link to="/app/settings" className="btn btn-secondary">
-              Adjust preferences
+              {t('disc.adjustPrefs')}
             </Link>
           }
         />
       ) : (
         <>
           <MatchGroup
-            title={BAND_LABELS.strong}
-            description="Strong overlap on the things you marked most important."
+            title={t(BAND_KEYS.strong)}
+            description={t('match.strongDesc')}
             results={strong}
             onRequest={setRequestTarget}
           />
           <MatchGroup
-            title={BAND_LABELS.good}
-            description="Good overlap, with one or two areas that matter less to you."
+            title={t(BAND_KEYS.good)}
+            description={t('match.goodDesc')}
             results={good}
             onRequest={setRequestTarget}
           />
           <MatchGroup
-            title="Worth a look"
-            description="Less overlap on your priorities, but still families you could realistically meet."
+            title={t('match.otherTitle')}
+            description={t('match.otherDesc')}
             results={other}
             onRequest={setRequestTarget}
           />
@@ -126,7 +131,7 @@ export function Matches() {
           onClose={() => setRequestTarget(null)}
           onSent={() => {
             setRequestTarget(null);
-            toast.push('Request sent.', 'ok');
+            toast.push(t('match.requestSent'), 'ok');
             void load();
           }}
         />
@@ -187,7 +192,9 @@ const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
 };
 
 export function Notifications() {
+  const t = useT();
   const [items, setItems] = useState<AppNotification[] | null>(null);
+  const f = useFormat();
 
   const load = useCallback(async () => {
     setItems(await api.getNotifications());
@@ -205,8 +212,8 @@ export function Notifications() {
     <div className="stack stack-6">
       <div className="row row-between row-4" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="page-head" style={{ marginBottom: 0 }}>
-          <h1>Notifications</h1>
-          <p>Requests, messages, playdates and account updates.</p>
+          <h1>{t('nav.notifications')}</h1>
+          <p>{t('ntf.sub')}</p>
         </div>
         {unread > 0 && (
           <button
@@ -216,7 +223,7 @@ export function Notifications() {
               await load();
             }}
           >
-            Mark all as read
+            {t('ntf.markAll')}
           </button>
         )}
       </div>
@@ -224,8 +231,8 @@ export function Notifications() {
       {items.length === 0 ? (
         <EmptyState
           icon={<IconBell size={22} />}
-          title="Nothing yet"
-          description="You will hear from us when a family responds, sends a message, or proposes a playdate."
+          title={t('ntf.emptyTitle')}
+          description={t('ntf.emptyDesc')}
         />
       ) : (
         <div className="card">
@@ -246,7 +253,7 @@ export function Notifications() {
               <div className="grow" style={{ minWidth: 0 }}>
                 <div className="row row-between row-2">
                   <span className="strong small">{n.title}</span>
-                  <span className="tiny muted nowrap">{timeAgo(n.createdAt)}</span>
+                  <span className="tiny muted nowrap">{f.timeAgo(n.createdAt)}</span>
                 </div>
                 <div className="small muted" style={{ marginTop: 2 }}>
                   {n.body}
@@ -267,9 +274,12 @@ export function Notifications() {
 
 export function SafetyCentre() {
   const { account } = useApp();
+  const t = useT();
+  const f = useFormat();
   const [tab, setTab] = useState<'guidance' | 'reports' | 'controls'>('guidance');
   const [reports, setReports] = useState<Report[]>([]);
   const [blocked, setBlocked] = useState<Array<{ familyId: string; displayName: string; createdAt: string }>>([]);
+  const { d } = useI18n();
 
   useEffect(() => {
     void api.getMyReports().then(setReports);
@@ -279,43 +289,40 @@ export function SafetyCentre() {
   return (
     <div className="stack stack-6">
       <div className="page-head">
-        <h1>Safety Centre</h1>
+        <h1>{t('nav.safetyCentre')}</h1>
         <p>
-          How to use PlayDate safely, what happens when you report someone, and everything you
-          can control.
+          {t('sc.sub')}
         </p>
       </div>
 
       <Tabs
-        label="Safety Centre"
+        label={t('nav.safetyCentre')}
         value={tab}
         onChange={setTab}
         tabs={[
-          { value: 'guidance', label: 'Guidance' },
-          { value: 'controls', label: 'Your controls' },
-          { value: 'reports', label: 'Your reports', count: reports.length },
+          { value: 'guidance', label: t('sc.guidance') },
+          { value: 'controls', label: t('sc.controls') },
+          { value: 'reports', label: t('sc.yourReports'), count: reports.length },
         ]}
       />
 
       {tab === 'guidance' && (
         <div className="stack stack-5">
           <SafetyNote>
-            None of this is unusual. It is how most parents already arrange a first playdate —
-            we have just built it into the product so it is the default rather than something
-            you have to remember.
+            {t('sc.notUnusual')}
           </SafetyNote>
 
           <div className="stack stack-3">
-            {SAFETY_TIPS.map((t) => (
-              <div key={t.title} className="card card-pad">
+            {SAFETY_TIPS.map((tip) => (
+              <div key={tip.titleKey} className="card card-pad">
                 <div className="row row-3" style={{ alignItems: 'flex-start' }}>
                   <span style={{ color: 'var(--ok-500)', marginTop: 2, flexShrink: 0 }}>
                     <IconCheck size={16} />
                   </span>
                   <div>
-                    <div className="strong">{t.title}</div>
+                    <div className="strong">{t(tip.titleKey)}</div>
                     <p className="muted small" style={{ marginTop: 2 }}>
-                      {t.body}
+                      {t(tip.bodyKey)}
                     </p>
                   </div>
                 </div>
@@ -323,20 +330,19 @@ export function SafetyCentre() {
             ))}
           </div>
 
-          <Alert tone="warn" title="PlayDate is not an emergency service.">
-            If a child is in immediate danger, contact your local emergency services first, then
-            report to us.
+          <Alert tone="warn" title={t('safetyPage.notEmergency')}>
+            {t('safetyPage.notEmergencyBody')}
           </Alert>
 
           {account?.safetyGuidelinesAcceptedAt && (
             <p className="tiny muted">
-              You confirmed you had read these on{' '}
-              {new Date(account.safetyGuidelinesAcceptedAt).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
+              {t('sc.confirmedOn', {
+                date: d(account.safetyGuidelinesAcceptedAt, {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                }),
               })}
-              .
             </p>
           )}
         </div>
@@ -353,67 +359,64 @@ export function SafetyCentre() {
           >
             <ControlCard
               icon={<IconBlock size={18} />}
-              title="Block"
+              title={t('common.block')}
               body="Immediate and unilateral. Closes any conversation, withdraws any pending request, and removes each family from the other's results. No reason needed, and they are not told."
               link={{ to: '/app/settings', label: `Manage blocked families (${blocked.length})` }}
             />
             <ControlCard
               icon={<IconFlag size={18} />}
-              title="Report"
-              body="Opens a case for a human reviewer. It never publicly marks anyone and the reported family is never told. Available from any profile, request or conversation."
+              title={t('common.report')}
+              body={t('sc.reportBody')}
             />
             <ControlCard
               icon={<IconShieldCheck size={18} />}
-              title="Pause discovery"
+              title={t('sc.pauseTitle')}
               body="Turn off discoverability to disappear from other families' results without deleting anything. Existing conversations continue."
-              link={{ to: '/app/settings', label: 'Privacy settings' }}
+              link={{ to: '/app/settings', label: t('sc.privacySettings') }}
             />
             <ControlCard
               icon={<IconUsers size={18} />}
-              title="Require verification"
-              body="Only let ID-verified parents send you a request. On by default, and we recommend leaving it on."
-              link={{ to: '/app/settings', label: 'Privacy settings' }}
+              title={t('sc.requireTitle')}
+              body={t('sc.requireBody')}
+              link={{ to: '/app/settings', label: t('sc.privacySettings') }}
             />
           </div>
 
           <div className="card card-pad">
             <h3 style={{ fontSize: 'var(--text-md)', marginBottom: 'var(--sp-3)' }}>
-              What a report actually does
+              {t('sc.whatReportDoes')}
             </h3>
             <div className="row row-wrap small" style={{ gap: 'var(--sp-3)' }}>
-              <span className="pill">You report</span>
+              <span className="pill">{t('sc.rf1')}</span>
               <span className="muted">→</span>
-              <span className="pill">Case opened</span>
+              <span className="pill">{t('safetyPage.flow2')}</span>
               <span className="muted">→</span>
-              <span className="pill">A person reviews it</span>
+              <span className="pill">{t('sc.rf3')}</span>
               <span className="muted">→</span>
-              <span className="pill">Decision recorded</span>
+              <span className="pill">{t('safetyPage.flow4')}</span>
             </div>
             <p className="small muted" style={{ marginTop: 'var(--sp-4)' }}>
-              Outcomes are: no action, a warning, required re-verification, a temporary
-              restriction, suspension, or a permanent ban. Every decision is recorded with a
-              reason and a named reviewer. Several reports about the same family are grouped
-              into one case so a pattern is visible as a pattern.
+              {t('sc.outcomes')}
             </p>
           </div>
 
           <div className="card card-pad">
             <h3 style={{ fontSize: 'var(--text-md)', marginBottom: 'var(--sp-4)' }}>
-              What you can report
+              {t('sc.whatYouCanReport')}
             </h3>
             <div className="stack stack-3">
-              {Object.entries(REPORT_REASON_COPY).map(([k, v]) => (
-                <div key={k} className="row row-3" style={{ alignItems: 'flex-start' }}>
+              {REPORT_REASONS.map(({ id, urgent }) => (
+                <div key={id} className="row row-3" style={{ alignItems: 'flex-start' }}>
                   <span
                     className="dot"
                     style={{
                       marginTop: 8,
-                      background: v.urgent ? 'var(--danger-500)' : 'var(--ink-300)',
+                      background: urgent ? 'var(--danger-500)' : 'var(--ink-300)',
                     }}
                   />
                   <div>
-                    <div className="small strong">{v.label}</div>
-                    <div className="tiny muted">{v.description}</div>
+                    <div className="small strong">{t(reportLabelKey(id))}</div>
+                    <div className="tiny muted">{t(reportDescKey(id))}</div>
                   </div>
                 </div>
               ))}
@@ -427,8 +430,8 @@ export function SafetyCentre() {
           {reports.length === 0 ? (
             <EmptyState
               icon={<IconFlag size={22} />}
-              title="You have not reported anyone"
-              description="Reports you submit appear here so you can see what you told us and when."
+              title={t('sc.noReportsTitle')}
+              description={t('sc.noReportsDesc')}
             />
           ) : (
             reports.map((r) => (
@@ -436,11 +439,13 @@ export function SafetyCentre() {
                 <div className="row row-between row-3" style={{ flexWrap: 'wrap' }}>
                   <div>
                     <div className="strong small">
-                      {REPORT_REASON_COPY[r.reason]?.label ?? r.reason}
+                      {t(reportLabelKey(r.reason))}
                     </div>
-                    <div className="tiny muted">Submitted {timeAgo(r.createdAt)}</div>
+                    <div className="tiny muted">
+                      {t('sc.submitted', { when: f.timeAgo(r.createdAt) })}
+                    </div>
                   </div>
-                  <Badge tone="pending">Under review</Badge>
+                  <Badge tone="pending">{t('sc.underReview')}</Badge>
                 </div>
                 <p className="small muted" style={{ marginTop: 'var(--sp-3)' }}>
                   {r.details}
@@ -449,8 +454,7 @@ export function SafetyCentre() {
             ))
           )}
           <Alert tone="info">
-            We do not tell you what action was taken against another family — that is their
-            private account information. If the behaviour continues, please report it again.
+            {t('sc.noOutcomeShared')}
           </Alert>
         </div>
       )}

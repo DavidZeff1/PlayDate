@@ -57,7 +57,37 @@ not contain an address, a phone number, a legal name, or a date of birth — tho
 were dropped before the object crossed the layer boundary. A UI bug therefore cannot leak
 them; the data is not in the object to leak.
 
-### 1.3 Why a projection instead of "hide it in the UI"
+### 1.3 Localisation is a layer rule, not a feature
+
+`i18n/` sits beside `domain/` rather than above it, and enforces one rule on everything
+below the UI: **no layer below `pages/` may produce a human sentence.**
+
+The domain emits a key plus interpolation variables. `matchFamilies()` returns
+`{ key: 'reason.sharedInterests', vars: { n: 5 } }`, not `"5 shared interests"`.
+`projectFamily()` returns `{ kind: 'distance', bandKey: 'dist.2to4' }`, not
+`"2–4 km away"`. Validation returns `{ key, vars }`. The API's suggested next steps
+return `titleKey` / `descKey` / `ctaKey`.
+
+This was forced by adding Hebrew, but it is the right shape regardless: a service that
+returns prose is a service that can only ever serve one locale, and the sentences it
+returns cannot be unit-tested without asserting on English copy.
+
+Two type-level guarantees hold it together:
+
+- `TKey` is derived from the English dictionary (`keyof typeof en`), so `t('nav.setings')`
+  does not compile.
+- `dict.he.ts` is declared `Record<TKey, string>`, so **an untranslated key is a build
+  error.** There is no runtime fallback that silently renders `nav.settings` to a parent.
+
+Direction is handled as layout, not translation. `dir` is set once on `<html>`; the
+stylesheet uses CSS logical properties throughout, so the entire app mirrors without a
+parallel RTL stylesheet. `styles/rtl.css` covers only what logical properties cannot
+express — transforms (via a `--dir` multiplier), directional icons, Hebrew font stacks,
+and the LTR islands (phone, email, opaque IDs, numeric inputs) that must not mirror
+inside RTL text. Dates, numbers and list joins go through `Intl.DateTimeFormat`,
+`Intl.NumberFormat` and `Intl.ListFormat`.
+
+### 1.4 Why a projection instead of "hide it in the UI"
 
 The common failure mode for products like this is sending the full record to the client
 and hiding fields with CSS or conditionals. That leaks through the network tab, through
@@ -288,9 +318,12 @@ surface cannot become a channel for sensitive-attribute sorting through creative
 children, interests with importance weights, granular privacy controls, discovery,
 weighted explainable matching, connection requests, mutual acceptance, parent messaging
 with safety tooling, playdate planning with safety checklist, reporting, blocking,
-moderation queue, audit log, responsive UI.
+moderation queue, audit log, responsive UI, full English/Hebrew localisation with RTL
+layout mirroring.
 
 **Architected for, not built:** real identity provider, real SMS/email delivery, push
 notifications, maps and public-venue recommendations, ML-assisted moderation, fraud and
 duplicate-account detection, reputation mechanisms, calendar integration, native apps,
-fine-grained multi-parent permissions, per-region compliance configuration.
+fine-grained multi-parent permissions, per-region compliance configuration, further
+locales (the mechanism is in place; each new language is a dictionary plus a typography
+review, and any RTL language reuses the existing mirroring).
