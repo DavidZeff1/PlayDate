@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>PlayDate — Families discovering families</title>
+    <meta
+      name="description"
+      content="PlayDate helps parents find compatible families for safe playdates. Verified parents, controlled discovery, mutual consent. MVP prototype."
+    />
+    <meta name="theme-color" content="#2a5666" />
+    <meta name="color-scheme" content="light" />
+
+    <!--
+      Content-Security-Policy.
+
+      A meta CSP is weaker than a response header and a production deployment MUST send
+      this as a header instead, with nonces in place of 'unsafe-inline'. Two directives
+      are deliberately absent here because a <meta> CSP cannot carry them and browsers
+      warn if you try: frame-ancestors (clickjacking) and report-uri. Both belong in the
+      header, alongside HSTS, X-Content-Type-Options and Referrer-Policy — see
+      docs/SECURITY.md. The policy lives here so it is version-controlled with the app
+      rather than only in server config.
+
+      'unsafe-inline' for style-src is required by React's inline style attributes; the
+      production fix is a nonce or hashed styles, tracked in docs/SECURITY.md.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               script-src 'self';
+               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+               font-src 'self' https://fonts.gstatic.com data:;
+               img-src 'self' data: blob:;
+               connect-src 'self';
+               form-action 'self';
+               base-uri 'self';
+               object-src 'none'"
+    />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap"
+      rel="stylesheet"
+    />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232a5666'/%3E%3Ccircle cx='12.5' cy='13' r='7' fill='white' fill-opacity='0.95'/%3E%3Ccircle cx='20.5' cy='19.5' r='7' fill='white' fill-opacity='0.55'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
